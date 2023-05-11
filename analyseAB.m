@@ -1,0 +1,127 @@
+function analyseAB()
+
+inputDir = 'G:\matlab\data\direct\gt\1';
+
+MakeDirIfMissing(fullfile(inputDir,'01'));
+dirInfo = dir(fullfile(inputDir,'Camera*'));
+% for i = 1 : length(dirInfo)
+%    img = rgb2gray(imread(fullfile(inputDir,dirInfo(i).name))); 
+%    imgL = img(:,1:size(img,2)/2);
+%    imgR = img(:,size(img,2)/2+1:end);
+% %    imwrite(imgL,fullfile(inputDir,'1',sprintf('imgL_%03d.png',i)));
+% %    imwrite(imgR,fullfile(inputDir,'1',sprintf('imgR_%03d.png',i)));
+% end
+
+names = {'Camera0','Camera1','Camera2','Camera3'};
+srcs = {'src0','src1'};
+
+
+camInfo = dir(fullfile(inputDir,'0*'));
+
+tsInfo = cell(4,2);
+frameNum = [];
+for i = 1 : length(dirInfo)
+    tsInfo{i,1} = loadjson(fullfile(inputDir, dirInfo(i).name,'data.json'));
+    tsInfo{i,1}.Sequence.CameraInfo.width = 960;512;
+    tsInfo{i,1}.Sequence.CameraInfo.height = 960;512;
+    tsInfo{i,1}.Sequence.CameraInfo.Camera.width = 960;512;
+    tsInfo{i,1}.Sequence.CameraInfo.Camera.height = 960;512;
+%     srcInfo = dir(fullfile(inputDir,srcs{i},'*.png'));
+    for j = 1:length(tsInfo{i,1}.Sequence.Frameset.Frame)
+%         tsInfo{i,2} = [tsInfo{i,2};tsInfo{i,1}.Sequence.Frameset.Frame(j).timestamp];
+        tsInfo{i,2} = [tsInfo{i,2};[tsInfo{i,1}.Sequence.Frameset.Frame(j).timestamp./1e9 tsInfo{i,1}.Sequence.Frameset.Frame(j).exposure_time./1e6]];
+        
+%         if j <= length(dirInfo)
+%              img = (imread(fullfile(inputDir,srcs{i},srcInfo(j).name))); 
+%         else
+%             img = (imread(fullfile(inputDir,srcs{i},srcInfo(length(dirInfo)).name))); 
+%         end
+%         imwrite(img,fullfile(inputDir, camInfo(i).name,tsInfo{i,1}.Sequence.Frameset.Frame(j).filename));
+%         frameNum = [frameNum;length(tsInfo{i,1}.Sequence.Frameset.Frame)];
+    end
+    
+end
+
+% err = [tsInfo{1,2}(1:min(frameNum),1) tsInfo{2,2}(1:min(frameNum),1) tsInfo{3,2}(1:min(frameNum),1)] - tsInfo{4,2}(1:min(frameNum),1);
+% figure, subplot(1,2,1);plot(diff(tsInfo{1,2})./1e6);subplot(1,2,2), plot(err./1e6)
+
+if 0
+    figure,plot(tsInfo{1,2}(:,1), tsInfo{1,2}(:,2))
+    figure,plot(tsInfo{1,2}(:,2))
+end
+
+
+
+
+ab = load(fullfile(inputDir,'ab.txt'));
+ab(:,1:2) = ab(:,1:2)./1e9;
+
+ab_bak = ab(:,3:4);
+
+ab(:,3) = 1./exp(ab_bak(:,1));
+ab(:,4) = ab(:,4)./exp(ab_bak(:,1));
+
+
+if 1
+
+    ab = load(fullfile(inputDir,'ab_statistics.txt'));
+
+    ab = load(fullfile(inputDir,'abLog.txt'));
+    
+    
+    ab = load(fullfile(inputDir,'ab_dsol.txt'));
+    
+end
+
+
+frameIds = unique(ab(:,2));
+
+id_to_timestamp = [];
+count = 1;
+infoMat = {};
+ts_stack = [];
+for (i = 1 : length(frameIds))
+    id = find(ab(:,2) == frameIds(i));
+    ab_history = ab(id,1:4);
+    infoMat{count,1} = frameIds(i);
+    infoMat{count,2} = ab_history;
+    count = count + 1;
+    for j = 1 : length(id)
+       ts = ab(id(j),1);
+       idd = find(ts_stack == ts);
+        if isempty(idd)
+            ts_stack = [ts_stack; ts];
+        else
+            a = 1;
+        end
+    end
+    
+end
+   
+ab_curve = [];
+ab_curve_key = [];
+for i = 1 : size(infoMat,1)
+    
+    ab_curve = [ab_curve; [infoMat{i,1} infoMat{i,2}(1,3:4) infoMat{i,2}(end,3:4)]];
+    
+    if size(infoMat{i,2},1) > 1
+        ab_curve_key = [ab_curve_key; [infoMat{i,1} infoMat{i,2}(1,3:4) infoMat{i,2}(end,3:4)]];
+    end
+end
+
+
+figure,subplot(1,2,1),plot(ab_curve(:,1),ab_curve(:,[2 4]));title('normal frame a');legend('init','opt');grid on;
+       subplot(1,2,2),plot(ab_curve(:,1),ab_curve(:,[3 5]));title('normal frame b');legend('init','opt');grid on;
+       
+       
+figure,subplot(1,2,1),plot(ab_curve_key(:,1),ab_curve_key(:,[2 4]));title('key frame a');legend('init','opt');grid on;
+       subplot(1,2,2),plot(ab_curve_key(:,1),ab_curve_key(:,[3 5]));title('key frame b');legend('init','opt');grid on;
+%        hold on;plot(tsInfo{1,2}(:,1), tsInfo{1,2}(:,2))
+
+
+if 0
+    figure,subplot(1,2,1),plot(ab_curve(1:1200,1),ab_curve(1:1200,[2]));hold on;plot(ab_curve(212,1),ab_curve(212,[2]),'or','MarkerSize',5,'LineWidth',5);title('normal frame a');legend('init','opt');
+    subplot(1,2,2),plot(ab_curve(1:1200,1),ab_curve(1:1200,[3]));hold on;plot(ab_curve(212,1),ab_curve(212,[3]),'or','MarkerSize',5,'LineWidth',5);title('normal frame b');legend('init','opt');
+end
+
+end

@@ -1,0 +1,1 @@
+yml2eeprom.exe -w=640 -h=480 -i=D:/facTest3/1#/intrinsics.yml -e=D:/facTest3/1#/extrinsics.yml -o=D:/facTest3/1#/calib_param_01.eeprom
