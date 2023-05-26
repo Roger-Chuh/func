@@ -9,7 +9,7 @@ inputDir = 'G:\matlab\data\direct\gt\1';
 
 % inputDir = 'G:\matlab\data\direct\gt\D2_001';
 % inputDir = 'G:\matlab\data\direct\gt\self';
-inputDir = 'G:\matlab\data\direct\gt\ke\3';
+% inputDir = 'G:\matlab\data\direct\gt\ke\3';
 
 scale = 1;
 camInfo = dir(fullfile(inputDir, 'Camera*'));
@@ -20,8 +20,8 @@ camInfo = dir(fullfile(inputDir, 'Camera*'));
  
 % save('Data.mat','Data');
 
-check_pid = 2454;106;454;
-check_fid = 19 - 2;
+check_pid = 3077;  2454;106;454;
+check_fid = 14 - 2;
 check_fid = max([0 check_fid]);
 
 
@@ -527,7 +527,7 @@ for i = 1+offset : length(Data)
    data.z = a(14+delta);
    data.z_fused = a(15+delta);
    data.xyz_w = a(16+delta:18+delta);
-   if 0
+   if 1 % ÓÐpatch
        data.px_step = reshape(a(19+delta:end-200-extr_data),3,[])';
        data.warp = reshape(a(end-200-extr_data+1:end-extr_data),20,10)';
        data.px_step(:,1:2) = data.px_step(:,1:2) + 1;

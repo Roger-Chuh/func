@@ -1,4 +1,4 @@
-function [poseMat, G, pose,vel1,dis1] = integrateImu(acc, gyro, g0, scaleAcc, scaleGyro, biasAcc, biasGyro,vel0,dis0, dt,R)
+function [poseMat, G, pose,vel1,dis1] = integrateImu(acc, gyro, g0, scaleAcc, scaleGyro, biasAcc, biasGyro,vel0, R, dis0, dts)
 % vel0 = [0 0 0];
 % dis0 = [0 0 0]';
 % R = eye(3);
@@ -23,8 +23,8 @@ for i = 2 : size(acc,1) - 0
     if i == 43
         avi = 1;
     end
-    
-    [vel1, rot1, t1,angle,ang,dis1,aWorld] = IntgAcc3(scaleAcc*acc(i-1,:)' + biasAcc - g0, [] ,scaleGyro*gyro(i-1,:)' + biasGyro, [], vel0, dis0, dt,R);
+    dt = dts(i) - dts(i-1);
+    [vel1, rot1, t1,angle,ang,dis1,aWorld] = IntgAcc3(scaleAcc*acc(i-1,:)' + biasAcc + g0, [] ,scaleGyro*gyro(i-1,:)' + biasGyro, [], vel0, dis0, dt,R);
     sdbjk = 1;
     
 %     [vel1, rot1, t1,angle,ang,dis1,aWorld] = IntgAcc3((a(i-1,:)').*sf + ba - g0, (a(i,:)').*sf + ba  - g0 ,w(i-1,:)' + bw, w(i,:)' + bw, vel0, dis0, dt,R);

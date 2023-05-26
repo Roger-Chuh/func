@@ -66,9 +66,9 @@ if 1
 
     ab = load(fullfile(inputDir,'ab_statistics.txt'));
 
-    ab = load(fullfile(inputDir,'abLog.txt'));
-    
-    
+%     ab = load(fullfile(inputDir,'abLog.txt'));
+%     
+%     
     ab = load(fullfile(inputDir,'ab_dsol.txt'));
     
 end
@@ -98,6 +98,29 @@ for (i = 1 : length(frameIds))
     
 end
    
+infoMat_bak = infoMat;
+
+for i = 1 : size(infoMat,1)
+    if size(infoMat{i,2},1) > 1
+    
+        temp1 = infoMat{i,2};
+        [temp, id1, id2] = intersect(temp1(:,2:4), temp1(:,2:4), 'rows');
+        [~,id_] = sort(id1);
+        temp_ = temp(id_,:);
+        id11 = id1(id_);
+        aa = diff(id11);
+        if(~isempty(aa))
+            assert(min(aa) >= 1);
+        end
+        err = temp_ - temp1(id11,2:4);
+        
+%         figure(50),subplot(1,2,1);plot(temp_(:,2));subplot(1,2,2);plot(temp_(:,3));drawnow;
+        
+        infoMat{i,2} = temp1(id11,1:4);
+    end
+    
+end
+
 ab_curve = [];
 ab_curve_key = [];
 for i = 1 : size(infoMat,1)
@@ -109,6 +132,11 @@ for i = 1 : size(infoMat,1)
     end
 end
 
+% [~,dist] = NormalizeVector(ab_curve_key(:,4:5));
+% ab_curve_key = ab_curve_key(dist<200,:);
+% 
+% [~,dist1] = NormalizeVector(ab_curve(:,4:5));
+% ab_curve = ab_curve(dist1<200,:);
 
 figure,subplot(1,2,1),plot(ab_curve(:,1),ab_curve(:,[2 4]));title('normal frame a');legend('init','opt');grid on;
        subplot(1,2,2),plot(ab_curve(:,1),ab_curve(:,[3 5]));title('normal frame b');legend('init','opt');grid on;
@@ -123,5 +151,32 @@ if 0
     figure,subplot(1,2,1),plot(ab_curve(1:1200,1),ab_curve(1:1200,[2]));hold on;plot(ab_curve(212,1),ab_curve(212,[2]),'or','MarkerSize',5,'LineWidth',5);title('normal frame a');legend('init','opt');
     subplot(1,2,2),plot(ab_curve(1:1200,1),ab_curve(1:1200,[3]));hold on;plot(ab_curve(212,1),ab_curve(212,[3]),'or','MarkerSize',5,'LineWidth',5);title('normal frame b');legend('init','opt');
 end
+
+
+dirInfo1 = dir(fullfile(inputDir,'imgs_marg_off','*.png'));
+dirInfo2 = dir(fullfile(inputDir,'imgs_marg_on','*.png'));
+names1 = [];
+for jj = 1 : length(dirInfo1)
+    names1 = [names1; str2double(dirInfo1(jj).name(7:end-4))];
+end
+names2 = [];
+for jj = 1 : length(dirInfo2)
+    names2 = [names2; str2double(dirInfo2(jj).name(7:end-4))];
+end
+
+[~,idx1] = sort(names1);
+[~,idx2] = sort(names2);
+
+
+assert(length(idx1) == length(idx2));
+figure(95);
+for j = 1: length(idx1)
+    
+   marg_off = imread(fullfile(inputDir,'imgs_marg_off',dirInfo1(idx1(j)).name)); 
+   marg_on = imread(fullfile(inputDir,'imgs_marg_on',dirInfo2(idx2(j)).name)); 
+   imshow([marg_off marg_on]);title(sprintf('frameId: %d,  marg-Off                                                                         marg-ON',j));drawnow;
+    
+end
+
 
 end

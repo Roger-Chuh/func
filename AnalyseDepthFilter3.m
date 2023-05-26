@@ -4,7 +4,7 @@ function AnalyseDepthFilter3()
 inputDir = 'G:\matlab\data\direct\gt\1';
 % inputDir = 'G:\matlab\data\direct\gt\self';
 % inputDir = 'G:\matlab\data\direct\gt\ke\2';
-inputDir = 'G:\matlab\data\direct\gt\ke\3';
+% inputDir = 'G:\matlab\data\direct\gt\ke\3';
 data = load(fullfile(inputDir, 'trace_info_statistics.txt'));
 
 
@@ -33,7 +33,7 @@ bad_count = 0;
 draw = 0;1;0; 1;0;
 
 
-pid_check = 206 - 1;
+pid_check = 3077 - 1;
 
 
 
