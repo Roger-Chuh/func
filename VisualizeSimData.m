@@ -36,7 +36,11 @@ for i = 1 :length(id1)
         
         for(ii = 1 : size(camera_data,1))
            xyz_host = camera_data(ii, 21:23)';
-           xyz_check = Tcw(1:3,1:3)*comm_landmark(camera_data(ii,17)+1,:)' + Tcw(1:3,4);
+           try
+               xyz_check = Tcw(1:3,1:3)*comm_landmark(camera_data(ii,17)+1,:)' + Tcw(1:3,4);
+           catch
+               continue;
+           end
            xyz_check = xyz_check./norm(xyz_check);
            err(cnt,1) = norm(xyz_host - xyz_check);
            cnt = cnt + 1;
@@ -72,8 +76,8 @@ for i = 1 :length(id1)
 end
 
 if 0
-    figure,plotPath(poseMat(1:10:500,:));hold on; pcshow(Data(:,18:20),[1 0 0],'MarkerSize',10); axis equal;
-    figure,plotPath(poseMatCam(1:10:500,:));hold on; pcshow(Data(:,18:20),[1 0 0],'MarkerSize',10); axis equal;
+    figure,plotPath(poseMat(1:1:end,:));hold on; pcshow(Data(:,18:20),[1 0 0],'MarkerSize',10); axis equal;
+    figure,plotPath(poseMatCam(1:1:end,:));hold on; pcshow(Data(:,18:20),[1 0 0],'MarkerSize',10); axis equal;
 end
 
 
@@ -81,7 +85,7 @@ assert(size(CamTrace{1,1},1) == size(CamTrace{2,1},1));
 assert(size(CamTrace{1,1},1) == size(CamTrace{3,1},1));
 assert(size(CamTrace{1,1},1) == size(CamTrace{4,1},1));
 
-if 0
+if 1
     figure(100),
     for k = 1 : size(CamTrace{1,1},1)
         

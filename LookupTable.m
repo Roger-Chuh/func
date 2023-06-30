@@ -2,6 +2,8 @@ function LookupTable()
 global param CENTER_FOV;
 
 
+one_based = 1; 0; 1;
+
 % close all;
 param = [236.8820281-0;
     236.7437341-0;
@@ -13,10 +15,12 @@ param = [236.8820281-0;
     -0.009899091649];
 param = [236.829010 237.239883 321.422058 236.294388 0.217803 -0.175568 0.064648 -0.010765]';
 
+param = [234.3060155, 234.6350819, 319.9609246, 240.7165617, 0.2206591747, -0.1801930843, 0.07274986781, -0.01355495556]';
+
 CENTER_FOV = 90; 170;150;  120; 90; 60; 30; 80;90;
 fov = 3 * CENTER_FOV;
 K = [param(1) 0 param(3); 0 param(2) param(4);0 0 1];
-virtual_img_width = 100; 500;  250; 100; 250;500; 250 ;
+virtual_img_width = 64; 100; 512; 32;40; 100; 500;  250; 100; 250;500; 250 ;
 
 width = 640;
 height = 480;
@@ -26,8 +30,11 @@ height = 480;
 rotations_bak = rotations;
 rotations{2,1} = rotations_bak{5,1};
 rotations{5,1} = rotations_bak{2,1};
-
-[xMat_fish, yMat_fish] = meshgrid(1:width, 1:height);
+if one_based
+    [xMat_fish, yMat_fish] = meshgrid(1:width, 1:height);
+else
+    [xMat_fish, yMat_fish] = meshgrid(0:width-1, 0:height-1);
+end
 fish = [xMat_fish(:) yMat_fish(:)];
 
 [pt3d, d_pt3d_d_uv, d_pt3d_d_param] = unprojectKB8(fish(:,1), fish(:,2), param);
@@ -75,8 +82,11 @@ for i = 1 : length(rotations)
 end
 
 assert(size(cell2mat(Pix2Pinhole),1) == size(valid_stack,1));
-
-[xMat_pinhole, yMat_pinhole] = meshgrid(1:virtual_img_width, 1:virtual_img_width);
+if one_based
+    [xMat_pinhole, yMat_pinhole] = meshgrid(1:virtual_img_width, 1:virtual_img_width);
+else
+    [xMat_pinhole, yMat_pinhole] = meshgrid(0:virtual_img_width-1, 0:virtual_img_width-1);
+end
 pinhole = [xMat_pinhole(:) yMat_pinhole(:)];
 pinhole(:,3) = 1;
 Lut = cell(5,2);
@@ -309,7 +319,11 @@ end
         map = zeros(imgHeight, imgWidth,2);
         fisheye2cam_pt = zeros(imgHeight, imgWidth,2);
         fisheye2cam_id = 255.*ones(imgHeight, imgWidth);
-        [xMat, yMat] = meshgrid(1 : imgWidth, 1 : imgHeight);
+        if one_based
+            [xMat, yMat] = meshgrid(1 : imgWidth, 1 : imgHeight);
+        else
+            [xMat, yMat] = meshgrid(0 : imgWidth-1, 0 : imgHeight-1);
+        end
         pix = [xMat(:) yMat(:)];
         
         pt3d = (rotation * [ pix(:,1) - (imgWidth-1) / 2;    pix(:,2) - (imgHeight-1) / 2;  f_center.*ones(1,size(pix,1))])';
