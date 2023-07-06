@@ -55,21 +55,13 @@ else
     scale1 = 0.02;
     camId1 = 1;
     camId2 = 5;
-    camId3 = 6;
     %     quiver3(poseVec11(1:kl,1),poseVec11(1:kl,2),poseVec11(1:kl,3),poseVec11(1:kl,4),poseVec11(1:kl,5),poseVec11(1:kl,6),0.1);
     %     quiver3(poseVec11(1:kl,1),poseVec11(1:kl,2),poseVec11(1:kl,3),poseVec11(1:kl,7),poseVec11(1:kl,8),poseVec11(1:kl,9),0.1);
     %     quiver3(poseVec11(1:kl,1),poseVec11(1:kl,2),poseVec11(1:kl,3),poseVec11(1:kl,10),poseVec11(1:kl,11),poseVec11(1:kl,12),0.1);
     quiver3(data(:,10), data(:,11), data(:,12), scale.*data(:,1), scale.*data(:,2), scale.*data(:,3),scale);
     quiver3(data(:,10), data(:,11), data(:,12), scale.*data(:,4), scale.*data(:,5), scale.*data(:,6),scale);
     quiver3(data(:,10), data(:,11), data(:,12), scale.*data(:,7), scale.*data(:,8), scale.*data(:,9),scale);
-    try
-        plot3(data(camId1,10), data(camId1,11), data(camId1,12),'or');plot3(data(camId1,10)+ scale1.*data(camId1,7), data(camId1,11)+ scale1.*data(camId1,8), data(camId1,12)+ scale1.*data(camId1,9),'og');
-        plot3(data(camId2,10), data(camId2,11), data(camId2,12),'or');plot3(data(camId2,10)+ scale1.*data(camId2,7), data(camId2,11)+ scale1.*data(camId2,8), data(camId2,12)+ scale1.*data(camId2,9),'om');
-        plot3(data(camId3,10), data(camId3,11), data(camId3,12),'or');plot3(data(camId3,10)+ scale1.*data(camId3,7), data(camId3,11)+ scale1.*data(camId3,8), data(camId3,12)+ scale1.*data(camId3,9),'ob');
-    catch
-        
-        sdgfhk = 1;
-    end
+    plot3(data(camId1,10), data(camId1,11), data(camId1,12),'or');plot3(data(camId1,10)+ scale1.*data(camId1,7), data(1,11)+ scale1.*data(1,8), data(1,12)+ scale1.*data(1,9),'og');
     % %    quiver3(poseVec11Robot(1:kl,1),poseVec11Robot(1:kl,2),poseVec11Robot(1:kl,3),poseVec11Robot(1:kl,4),poseVec11Robot(1:kl,5),poseVec11Robot(1:kl,6),0.1);
     % %    quiver3(poseVec11Robot(1:kl,1),poseVec11Robot(1:kl,2),poseVec11Robot(1:kl,3),poseVec11Robot(1:kl,7),poseVec11Robot(1:kl,8),poseVec11Robot(1:kl,9),0.1);
     % %    quiver3(poseVec11Robot(1:kl,1),poseVec11Robot(1:kl,2),poseVec11Robot(1:kl,3),poseVec11Robot(1:kl,10),poseVec11Robot(1:kl,11),poseVec11Robot(1:kl,12),0.1);

@@ -8,7 +8,9 @@ else
 end
 inputDir = 'G:\matlab\data\direct\sim';
 
-pc = load(fullfile(inputDir,filename));pc = pc(1:end,:);
+pc = load(fullfile(inputDir,filename));
+search_fail = pc(:, end-1:end);
+pc = pc(1:end,:);
 idepth = pc(:,2);
 landmark = pc(:,3:5);
 sigma = pc(:,6);
@@ -25,5 +27,6 @@ pcshow(landmark_use,'MarkerSize', 100);title(sprintf(strcat(filename, ', %d fram
 % subplot(1,2,2);hist(sigma,200);
 fprintf(sprintf('sigma num: %d\n', length(sigma)));
 
-
+figure,subplot(1,2,1);hist(search_fail, 100);
+subplot(1,2,2),hist(search_fail(:,2)./search_fail(:,1), 100);title('fail / search ratio');
 end
