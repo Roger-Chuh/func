@@ -40,9 +40,12 @@ fish = [xMat_fish(:) yMat_fish(:)];
 [pt3d, d_pt3d_d_uv, d_pt3d_d_param] = unprojectKB8(fish(:,1), fish(:,2), param);
 [pt2d, d_uv_d_pt3d, d_uv_d_param] = projectKB8(pt3d(:,1), pt3d(:,2), pt3d(:,3), param);
 [~,err] = NormalizeVector(pt2d-fish);
-valid_fisheye_area = find(err<0.000001);
+valid_fisheye_area = find(err<20); %000001
 mask = zeros(height, width);
 mask(valid_fisheye_area) = 1;
+
+figure,imshow(mask, []);
+
 
 Valid = cell(5,1);
 Pix2Pinhole = cell(5,1);

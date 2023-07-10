@@ -1,7 +1,7 @@
 function testPatchMatch(varargin)
 close all;
 
-
+global pix_noise
 if nargin < 1
    name =  'new';
 elseif nargin == 1
@@ -41,11 +41,11 @@ warped_gray_val = interp2(double(cur_patch), 90.1544, 223.536, 'linear', 0);
 
 
 % check_id = 39;host_id = 1;target_id = 8;load('G:\matlab\LK\slam_algo\patch_match.mat');
-% check_id = 36;host_id = 1;target_id = 2;load('G:\matlab\LK\slam_algo\patch_match.mat');
+check_id = 36;host_id = 1;target_id = 2;load('G:\matlab\LK\slam_algo\patch_match.mat');
 % check_id = 39;host_id = 1;target_id = 2;load('G:\matlab\LK\slam_algo\patch_match2.mat');
 % check_id = 43;host_id = 1;target_id = 2; load('G:\matlab\LK\slam_algo\patch_match3.mat');
-load('G:\matlab\LK\slam_algo\patch_match4.mat');
-check_id = 54;host_id = 1;target_id = 2;
+% load('G:\matlab\LK\slam_algo\patch_match4.mat');% 
+% check_id = 54;host_id = 1;target_id = 2;
 % check_id = 54;host_id = 1;target_id = 3;
 
 
@@ -139,61 +139,81 @@ gy(2 : height-1, :) = 0.5 * (double(host_img(3:height,:)) - double(host_img(1:he
 
 
 max_levels = 5;
-level_ref = 0; 1;2;0;1;
-halfpatch_size = 2;10;4;
-depth = depths(check_id);
-depth_ref = depth;
-xyz_ref = host_xyz(check_id, :);
-depth_ref_norm = norm(xyz_ref);
-% warped_gx = interp2(double(gx1), pt1s(:, 1), pt1s(:, 2), 'linear', 0);
-% warped_gy = interp2(double(gy1), pt1s(:, 1), pt1s(:, 2), 'linear', 0);
-px_ref = host_px(check_id,:);
-px_cur = pflat(intrMat * (T_th(1:3,1:3)*xyz_ref' + T_th(1:3,4)));
-[A_th, ~, epiDir] = GetWarpMatrixAffine(intrMat, px_ref, level_ref, halfpatch_size, T_th, xyz_ref);
-
-
-search_level = GetBestSearchLevel(A_th, max_levels - 1);
-% search_level = 0;
-
-pc_cur_check = target_proj(check_id,:);
-
-check_err = pc_cur_check - px_cur(1:2)';
-
-intrMat_scaled = intrMat./2;
-intrMat_scaled(3,3) = 1;
-intrMat_scaled(1,3) = (intrMat(1,3)-0.5) /2 +0.5;
-intrMat_scaled(2,3) = (intrMat(2,3)-0.5) /2 +0.5;
-pc_cur_scaled = pflat(intrMat_scaled * target_xyz(check_id,:)');
-pc_cur_scaled = pc_cur_scaled(1:2)';
-pc_cur_check_error = 2*(pc_cur_scaled-0.5)+0.5 - pc_cur_check;
-
-
-% is_host_square = false;
- [host_offset1, target_offset1,  px_host_scaled1, px_target_scaled1, host_image_scaled1, target_image_scaled1] = WarpAffine(A_th, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level, halfpatch_size+1);
-
-% is_host_square = true;
-% WarpAffine(inv(A_th), target_img, pc_cur_check, search_level, host_img, px_ref, level_ref, halfpatch_size+1);
-[A_th_scaled, ~] = GetWarpMatrixAffineInv(intrMat, px_ref, level_ref, halfpatch_size, T_th, xyz_ref);
-search_level_scaled = GetBestSearchLevel(inv(A_th_scaled), max_levels - 1);
-
-extra_search_level = 0;1;
-
-[host_offset2, target_offset2, px_host_scaled2, px_target_scaled2, host_image_scaled2, target_image_scaled2] = WarpAffineInv(A_th, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level+extra_search_level, halfpatch_size+1);
-% WarpAffineInv2(A_th_scaled, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level_scaled, halfpatch_size+1);
-
-host_offset1_check = (inv(A_th) * target_offset1')'.*2^(search_level);
-target_offset2_check = ((A_th) * host_offset2')'.*2^(-(search_level+extra_search_level));
-% figure,imshow(zeros(480, 640));hold on;plot(host_offset1_check(:,1) + 100, host_offset1_check(:,2) + 100,'.r');
- 
-fprintf('============================================================\n');
-align1d_zncc(eye(2), host_image_scaled1, target_image_scaled1, px_host_scaled1, px_target_scaled1, host_offset1, target_offset1, epiDir, epiDir, 2*(halfpatch_size+1));
-fprintf('============================================================\n');
-align1d_zncc2(A_th, search_level, host_image_scaled2, target_image_scaled2, px_host_scaled2, px_target_scaled2, host_offset2, target_offset2, epiDir, epiDir, 2*(halfpatch_size+1));
-
+level_ref = 2;0; 1;2;0;1;
+halfpatch_size = 4;2;10;4;
+cnt = 1;
+loss = {};
+errVec = [];
+iterNum = size(host_px,1);
+noise_level = -3:3;
+for j = noise_level
+    pix_noise = j;
+    for  check_id = 1 : iterNum
+        close all;
+        depth = depths(check_id);
+        depth_ref = depth;
+        xyz_ref = host_xyz(check_id, :);
+        depth_ref_norm = norm(xyz_ref);
+        % warped_gx = interp2(double(gx1), pt1s(:, 1), pt1s(:, 2), 'linear', 0);
+        % warped_gy = interp2(double(gy1), pt1s(:, 1), pt1s(:, 2), 'linear', 0);
+        px_ref = host_px(check_id,:);
+        px_cur = pflat(intrMat * (T_th(1:3,1:3)*xyz_ref' + T_th(1:3,4)));
+        if (px_cur(1) < 60 || px_cur(2) < 60 || px_cur(1) > 640 - 60 || px_cur(2) > 480-60)
+           continue; 
+        end
+        [A_th, ~, epiDir] = GetWarpMatrixAffine(intrMat, px_ref, level_ref, halfpatch_size, T_th, xyz_ref);
+        
+        
+        search_level = GetBestSearchLevel(A_th, max_levels - 1);
+        % search_level = 0;
+        
+        pc_cur_check = target_proj(check_id,:);
+        
+        check_err = pc_cur_check - px_cur(1:2)';
+        
+        intrMat_scaled = intrMat./2;
+        intrMat_scaled(3,3) = 1;
+        intrMat_scaled(1,3) = (intrMat(1,3)-0.5) /2 +0.5;
+        intrMat_scaled(2,3) = (intrMat(2,3)-0.5) /2 +0.5;
+        pc_cur_scaled = pflat(intrMat_scaled * target_xyz(check_id,:)');
+        pc_cur_scaled = pc_cur_scaled(1:2)';
+        pc_cur_check_error = 2*(pc_cur_scaled-0.5)+0.5 - pc_cur_check;
+        
+        
+        % is_host_square = false;
+        [host_offset1, target_offset1,  px_host_scaled1, px_target_scaled1, host_image_scaled1, target_image_scaled1] = WarpAffine(A_th, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level, halfpatch_size+1);
+        
+        % is_host_square = true;
+        % WarpAffine(inv(A_th), target_img, pc_cur_check, search_level, host_img, px_ref, level_ref, halfpatch_size+1);
+        [A_th_scaled, ~] = GetWarpMatrixAffineInv(intrMat, px_ref, level_ref, halfpatch_size, T_th, xyz_ref);
+        search_level_scaled = GetBestSearchLevel(inv(A_th_scaled), max_levels - 1);
+        
+        extra_search_level = 0;1;
+        
+        [host_offset2, target_offset2, px_host_scaled2, px_target_scaled2, host_image_scaled2, target_image_scaled2] = WarpAffineInv(A_th, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level+extra_search_level, halfpatch_size+1);
+        % WarpAffineInv2(A_th_scaled, host_img, px_ref, level_ref, target_img, pc_cur_check, search_level_scaled, halfpatch_size+1);
+        
+        host_offset1_check = (inv(A_th) * target_offset1')'.*2^(search_level);
+        target_offset2_check = ((A_th) * host_offset2')'.*2^(-(search_level+extra_search_level));
+        % figure,imshow(zeros(480, 640));hold on;plot(host_offset1_check(:,1) + 100, host_offset1_check(:,2) + 100,'.r');
+        
+        fprintf('============================================================\n');
+        [px_cur_error1, update_vec1] = align1d_zncc(eye(2), host_image_scaled1, target_image_scaled1, px_host_scaled1, px_target_scaled1, host_offset1, target_offset1, epiDir, epiDir, 2*(halfpatch_size+1));
+        % fprintf('============================================================\n');
+        % align1d_zncc(A_th, host_image_scaled2, target_image_scaled2, px_host_scaled2, px_target_scaled2, host_offset2, target_offset2, epiDir, epiDir, 2*(halfpatch_size+1));
+        fprintf('============================================================\n');
+        [px_cur_error2, update_vec2] = align1d_zncc2(A_th, search_level, host_image_scaled2, target_image_scaled2, px_host_scaled2, px_target_scaled2, host_offset2, target_offset2, epiDir, epiDir, 2*(halfpatch_size+1));
+        
+        errVec = [errVec; [px_cur_error1 px_cur_error2]];
+        loss{cnt,1} = update_vec1;
+        loss{cnt,2} = update_vec2;
+        cnt = cnt+1;
+    end
+end
 
 end
-function align1d_zncc(A_th, host_image, target_image,  px_host_scaled, px_target_scaled, host_offset, target_offset, epiDir, epiDir_noise, patch_size)
-
+function [px_cur_error, update_vec] = align1d_zncc(A_th, host_image, target_image,  px_host_scaled, px_target_scaled, host_offset, target_offset, epiDir, epiDir_noise, patch_size)
+global pix_noise
 epiDir0 = epiDir;
 
 use_b_only = false;
@@ -285,7 +305,7 @@ Hess = JznccMat' * JznccMat;
 Hess_inv = 1 / Hess;
 
 
-px_target_scaled_error = px_target_scaled + 3.*epiDir_noise;
+px_target_scaled_error = px_target_scaled + pix_noise.*epiDir_noise;
 
 u = px_target_scaled_error(1);
 v = px_target_scaled_error(2);
@@ -295,13 +315,13 @@ update = 0;
 
 
 
-iter_num = 5;
+iter_num = 15;
 min_update_squared = 0.001^2;
 
 
 update_vec = [];
 res = [];
-color = {'.g','.b','.m','.c','.y'};
+color = {'.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y'};
 for iter = 1 : iter_num
     
     u_r = floor(u);
@@ -346,7 +366,8 @@ update_vec
 px_cur_error = norm(px_target_scaled - [u v])
 
 end
-function align1d_zncc2(A_th_, search_level, host_image, target_image,  px_host_scaled, px_target_scaled, host_offset, target_offset, epiDir, epiDir_noise, patch_size)
+function [px_cur_error, update_vec] = align1d_zncc2(A_th_, search_level, host_image, target_image,  px_host_scaled, px_target_scaled, host_offset, target_offset, epiDir, epiDir_noise, patch_size)
+global pix_noise
 use_b_only = false;
 
 
@@ -364,7 +385,7 @@ target_center_check3 = A*[host_px 1]';
 
 epiDir0 = epiDir;
 
-epiDir = A_th * epiDir;
+epiDir = A_th * epiDir0';
 epiDir = epiDir'./norm(epiDir);
 
 target_offset0 = target_offset;
@@ -443,13 +464,15 @@ if use_b_only
 else
     J_zncc = (Mat_I - (warped_host_val * warped_host_val')) / sigma0 * (Mat_I - Mat_1 / (size(host_offset,1)));
 end
-JznccMat = J_zncc * [gxxx gyyy] * (A_th) * epiDir';
+% JznccMat = J_zncc * [gxxx gyyy] * epiDir';
+JznccMat = J_zncc * [gxxx gyyy] * inv(A_th) * epiDir0';
+% JznccMat = J_zncc * [gxxx gyyy] * inv(A_th) * epiDir';
 
 Hess = JznccMat' * JznccMat;
 Hess_inv = 1 / Hess;
 
 
-px_target_scaled_error = px_target_scaled + 2.*epiDir_noise;
+px_target_scaled_error = px_target_scaled + pix_noise.*epiDir_noise;
 
 u = px_target_scaled_error(1);
 v = px_target_scaled_error(2);
@@ -459,13 +482,13 @@ update = 0;
 
 
 
-iter_num = 5;
+iter_num = 15;
 min_update_squared = 0.001^2;
 
 
 update_vec = [];
 res = [];
-color = {'.g','.b','.m','.c','.y'};
+color = {'.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y','.g','.b','.m','.c','.y'};
 for iter = 1 : iter_num
     
     u_r = floor(u);
@@ -493,23 +516,30 @@ for iter = 1 : iter_num
     new_chi2 = sum(rs.^2);
     res = [res new_chi2];
     if iter > 1 && new_chi2 > chi2
-       u = u - update * epiDir(1);
-       v = v - update * epiDir(2);
+       u = u - update_value(1) * epiDir0(1);
+       v = v - update_value(1) * epiDir0(2);
        fprintf(sprintf('error increased, new_chi2: %f, update: %f\n', new_chi2,update));
        break;
     end
     chi2 = new_chi2;
     update = -Hess_inv * rs' * JznccMat;
-    update_vec = [update_vec  update];
+%     update_vec = [update_vec  update];
     
     if 1
         uv_new = A_th * [u; v] + update*epiDir';
         uv_new_coord = inv(A_th) * uv_new;
-        u = uv_new_coord(1);
-        v = uv_new_coord(2);
+        update_orig = uv_new_coord' - [u v];
+        update_value = update_orig./epiDir0;
+        update_vec = [update_vec  update_value(1)];
+%         u = uv_new_coord(1);
+%         v = uv_new_coord(2);
+        u = u + update_value(1) * epiDir0(1);
+        v = v + update_value(1) * epiDir0(2);
     else
-        u = u + update * epiDir(1);
-        v = v + update * epiDir(2);
+        update_value = update;
+        update_vec = [update_vec  update_value(1)];
+        u = u + update * epiDir0(1);
+        v = v + update * epiDir0(2);
     end
     subplot(1,2,2);plot(u, v, color{iter});
     if (update * update < min_update_squared) 
@@ -533,7 +563,7 @@ function search_level = GetBestSearchLevel(A_cur_ref, max_level)
 search_level = 0;
 D0 = det(A_cur_ref);
 D = det(A_cur_ref);
-while(D > 2 && search_level < max_level)
+while(D > 1.5 && search_level < max_level)
     search_level = search_level + 1;
     D = D * 0.25;
 end
