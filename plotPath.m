@@ -1,6 +1,6 @@
 function plotPath(data, clr)
 hold on;
-scale = 0.5;
+scale = 0.5 ;
 if 0
     
     % %     pcshow(UU(:,UU(1,:)<XX & UU(3,:)<ZZ)', [1 0 0], 'VerticalAxis', 'Y', 'VerticalAxisDir', 'Down');
@@ -63,9 +63,11 @@ else
     quiver3(data(:,10), data(:,11), data(:,12), scale.*data(:,4), scale.*data(:,5), scale.*data(:,6),scale);
     quiver3(data(:,10), data(:,11), data(:,12), scale.*data(:,7), scale.*data(:,8), scale.*data(:,9),scale);
     try
-        plot3(data(camId1,10), data(camId1,11), data(camId1,12),'or');plot3(data(camId1,10)+ scale1.*data(camId1,7), data(camId1,11)+ scale1.*data(camId1,8), data(camId1,12)+ scale1.*data(camId1,9),'og');
-        plot3(data(camId2,10), data(camId2,11), data(camId2,12),'or');plot3(data(camId2,10)+ scale1.*data(camId2,7), data(camId2,11)+ scale1.*data(camId2,8), data(camId2,12)+ scale1.*data(camId2,9),'om');
-        plot3(data(camId3,10), data(camId3,11), data(camId3,12),'or');plot3(data(camId3,10)+ scale1.*data(camId3,7), data(camId3,11)+ scale1.*data(camId3,8), data(camId3,12)+ scale1.*data(camId3,9),'ob');
+        if 0
+            plot3(data(camId1,10), data(camId1,11), data(camId1,12),'or');plot3(data(camId1,10)+ scale1.*data(camId1,7), data(camId1,11)+ scale1.*data(camId1,8), data(camId1,12)+ scale1.*data(camId1,9),'og');
+            plot3(data(camId2,10), data(camId2,11), data(camId2,12),'or');plot3(data(camId2,10)+ scale1.*data(camId2,7), data(camId2,11)+ scale1.*data(camId2,8), data(camId2,12)+ scale1.*data(camId2,9),'om');
+            plot3(data(camId3,10), data(camId3,11), data(camId3,12),'or');plot3(data(camId3,10)+ scale1.*data(camId3,7), data(camId3,11)+ scale1.*data(camId3,8), data(camId3,12)+ scale1.*data(camId3,9),'ob');
+        end
     catch
         
         sdgfhk = 1;

@@ -71,7 +71,8 @@ Tbc_mat1(6,:) = Tbc_mat1(5,:);
 Tbc_mat1(6,1:9) = reshape(rotmat22,1,9);
 CalcDegree(rotmat1(:,3)', rotmat2(:,3)')
 CalcDegree(rotmat1(:,3)', rotmat22(:,3)')
-figure, plotPath(Tbc_mat1);
-
+if 0
+    figure, plotPath(Tbc_mat1);
+end
 
 end
