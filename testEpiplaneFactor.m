@@ -1,13 +1,14 @@
 function testEpiplaneFactor()
 global use_dist_error use_5dof pose_size opt_3dof add_noise right_perturbation include_first_pose offset fixed_pose_num use_reproj_factor use_epiplane_factor...
-    fix_trans_norm use_xyz
+    fix_trans_norm use_xyz fix_rot
 add_noise = 1;
 opt_3dof = 0;
 use_dist_error = 0;
-use_5dof = 0;
-right_perturbation = 0;
-use_reproj_factor = 0;
-use_epiplane_factor = 1;
+use_5dof = 1;
+fix_rot = 0;
+right_perturbation = 1;
+use_reproj_factor = 1;
+use_epiplane_factor = 0;
 pose_num = 7;
 use_xyz = 1;
 
@@ -37,6 +38,11 @@ end
 
 if opt_3dof
     pose_size = 3; 
+end
+if fix_rot
+    use_5dof = 1;
+   pose_size = 2; 
+   right_perturbation = 1;
 end
 
 n = rand(3,1);
@@ -80,7 +86,7 @@ idps = 1./depths;
 pose{1,1} = eye(4);
 trans_ang_err{1,1} = [0 0];
 for i = 1 : pose_num %size(xyz,1)
-    if i == 1
+    if 0%i == 1
         pose{i,1} = eye(4);
     else
         pose{i,1} = [rodrigues(0.2*(rand(3,1)-0.5)) 0.5*(rand(3,1)-0.5); 0 0 0 1];
@@ -116,6 +122,9 @@ for i = opt_fids
         else
             pose_Tcw{i,1}(1:3,4) = pose_Tcw{i,1}(1:3,4)./norm(pose_Tcw{i,1}(1:3,4)).*trans_norm;
             pose_Twc{i,1} = inv(pose_Tcw{i,1});
+        end
+        if fix_rot
+            pose_Twc{i,1}(1:3, 1:3) = Twc_gt_(1:3,1:3);
         end
         if ~right_perturbation
             pose_err{i,1} = pose_Twc{i,1} * pose{i,1};
@@ -155,7 +164,7 @@ for iter = 1 : 30
     for pid = 1 : size(xyz,1)
         pt = xyz(pid,:);
         host_bearing = bearings{1}(pid,:);
-        assert(norm(pt./norm(pt) - host_bearing) < 0.000001);
+%         assert(norm(pt./norm(pt) - host_bearing) < 0.000001);
         for pair_id = 1 : size(pairs, 1)
             host_fid = pairs(pair_id, 1);
             target_fid = pairs(pair_id, 2);
@@ -294,7 +303,11 @@ for iter = 1 : 30
         else
             Twc_old = pose_Twc{ind+1-offset+fixed_pose_num-1};
             if ~opt_3dof
-                delta_r = ProduceOtherOthogonalBasis(Twc_old(1:3,4)) * update_vec(4:pose_size);
+                if ~fix_rot
+                    delta_r = ProduceOtherOthogonalBasis(Twc_old(1:3,4)) * update_vec(4:pose_size);
+                else
+                    delta_r = ProduceOtherOthogonalBasis(Twc_old(1:3,4)) * update_vec(1:pose_size);
+                end
                 if 1
                     trans_new_2dof = rodrigues(delta_r) * Twc_old(1:3,4);
                     pose_Twc{ind+1-offset+fixed_pose_num-1}(1:3,4) = trans_new_2dof;
@@ -314,7 +327,9 @@ for iter = 1 : 30
                     end
                 end
             else
-                pose_Twc{ind+1-offset+fixed_pose_num-1}(1:3,1:3) = Twc_old(1:3,1:3) * rodrigues(update_vec(1:3));
+                if ~fix_rot
+                    pose_Twc{ind+1-offset+fixed_pose_num-1}(1:3,1:3) = Twc_old(1:3,1:3) * rodrigues(update_vec(1:3));
+                end
             end
             
         end
@@ -573,7 +588,7 @@ switch (minIdx)
         A(:,1) = [n(2+1), 0, -n(0+1)]';
         
     case 3
-        A(:,1) = [-n(1+1), n(0+1), 0]';
+        A(:,1) = -[-n(1+1), n(0+1), 0]';
 end
 A(:,2) = cross(n,A(:,1));
 
@@ -584,7 +599,7 @@ A(:,2) = cross(n,A(:,1));
 
 end
 function [err_, d_err_d_host_pose, d_err_d_target_pose, JacPoint_true] = computeReprojFactor(Twc_host, Twc_target, lambda, n,ob)
-global use_5dof right_perturbation
+global use_5dof right_perturbation fix_rot
 Twc_h = Twc_host;
 Twc_t = Twc_target;
 Tcw_t = inv(Twc_t);
@@ -610,7 +625,11 @@ db_point_ = JacPoint_true' * err_;
 Rwc_h = Twc_h(1:3,1:3);
 twc_h = Twc_h(1:3,4);
 pro_vec_1_ = Rwc_h * n + twc_h * lambda;
+%世界坐标系下的3d点（注意不是表达在host坐标系下的）
 pro_vec_1_ = pro_vec_1_/ lambda;
+pro_vec_2_ = R_th * n + R_th * lambda;
+%target标系下的3d点（注意不是表达在host坐标系下的）
+pro_vec_2_ = pro_vec_2_/ lambda;
 Rcw_t = Tcw_t(1:3,1:3);
 %       Mat3RightMultiplySkewM3V3(Rcw_t, pro_vec_1_, Asb_);
 Asb_ = Rcw_t * SkewSymMat(pro_vec_1_);
@@ -625,8 +644,8 @@ JacPose_true = dH_true * JacPose_;
 
 if right_perturbation
     d_err_d_R_host = dH_true * (-R_th * SkewSymMat(n./lambda));
-    d_err_d_R_target = dH_true * SkewSymMat(pro_vec_1_);
-    
+    d_err_d_R_target = dH_true * SkewSymMat(pro_vec_2_);
+     
     d_err_d_t_host = dH_true * R_th;
     d_err_d_t_target = -dH_true;
     
@@ -659,8 +678,14 @@ else
         d_err_d_target_pose(:,1:3) = d_err_d_R_target;
     end
     
-    d_err_d_host_pose(:,4:5) = -Twc_target(1:3,1:3)' * SkewSymMat(Twc_host(1:3,4))*Ag_i;
-    d_err_d_target_pose(:,4:5) = Twc_target(1:3,1:3)' * SkewSymMat(Twc_target(1:3,4))*Ag_j;
+    d_err_d_host_pose(:,4:5) = dH_true * (-Twc_target(1:3,1:3)' * SkewSymMat(Twc_host(1:3,4))*Ag_i);
+    d_err_d_target_pose(:,4:5) = dH_true * (Twc_target(1:3,1:3)' * SkewSymMat(Twc_target(1:3,4))*Ag_j);
+    
+    if (fix_rot)
+        d_err_d_host_pose(:,1:2) = dH_true * (-Twc_target(1:3,1:3)' * SkewSymMat(Twc_host(1:3,4))*Ag_i);
+        d_err_d_target_pose(:,1:2) = dH_true * (Twc_target(1:3,1:3)' * SkewSymMat(Twc_target(1:3,4))*Ag_j);
+        
+    end
     
 end
 

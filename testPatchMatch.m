@@ -370,7 +370,7 @@ function [px_cur_error, update_vec] = align1d_zncc2(A_th_, search_level, host_im
 global pix_noise
 use_b_only = false;
 
-wrong_code = falstrue;
+wrong_code = false;
 
 target_offset_check = ((A_th_) * host_offset')'.*2^(-(search_level));
 
