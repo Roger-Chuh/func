@@ -1,5 +1,6 @@
 function plotPose()
 
+% inputFile = 'G:\matlab\data\vio_pose\imupose.txt';
 inputFile = 'G:\matlab\data\vio_pose\imupose.txt';
 
 % inputFile = 'G:\matlab\data\vio_pose\pose_old1.txt';

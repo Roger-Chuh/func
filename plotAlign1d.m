@@ -17,7 +17,8 @@ for i = 1 : size(A,1)
     a = A{i,1};
     
     
-    str = strcat(str, num2str(sum(a(:,2))));
+%     str = strcat(str, num2str(sum(a(:,2))));
+    str = strcat(str, num2str(sum(a(:,2) == 2)));
     if(i < size(A,1))
         str = strcat(str, '-');
     end
