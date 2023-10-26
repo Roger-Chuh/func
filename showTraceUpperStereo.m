@@ -1,17 +1,21 @@
-function showTraceUpperStereo(varargin)
+function TraceInfo = showTraceUpperStereo(varargin)
 
 
 
 % showTrace('point_trace_statistics.txt')
 
 
-close all;
+% close all;
 
 inputDir = 'G:\matlab\data\direct\gt\D2_001';
 save_name = 'G:\matlab\data\direct\gt\D2_001\imgs';
 
 inputDir = 'G:\matlab\data\direct\gt\D2_011';
 save_name = 'G:\matlab\data\direct\gt\D2_011\imgs';
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_004';
+save_name = 'G:\matlab\data\direct\gt\D2_004\imgs';
 
 
 % inputDir = 'G:\matlab\data\direct\gt\D2_004';
@@ -40,7 +44,7 @@ end
 load(mat_name);
 
 if(~exist('trace_info','var'))
-   trace_info = point_trace; 
+    trace_info = point_trace;
 end
 
 
@@ -87,8 +91,8 @@ for i = 1 : length(dirCam3)
 end
 
 
-%% cur_time  |  cur_fid   | host_time   | host_fid   |    Twb    | seed_id   | rho   | rho1d  |  host_cid |  target_cid  | is_outlier |    host_dir   |    host_uv |  target_dir  |   target_uv
-%%    1      |     2      |      3      |       4    |   5:10    |   11      |   12  |  13    |    14     |      15      |       16   |    17:19      |   20:21    |    22:24     |     25:26
+%% cur_time  |  cur_fid   | host_time   | host_fid   |    Twb    | seed_id   | rho   | rho1d  |  host_cid |  target_cid  | is_outlier |    host_dir   |    host_uv |  target_dir  |   target_uv | search_level
+%%    1      |     2      |      3      |       4    |   5:10    |   11      |   12  |  13    |    14     |      15      |       16   |    17:19      |   20:21    |    22:24     |     25:26   |     27
 
 
 trace_info(:,[14 15 20 21 25 26]) = trace_info(:,[14 15 20 21 25 26]) + 1;
@@ -117,13 +121,14 @@ check_time_window = [0 90];
 
 close_window_interval = 20;
 
-fig_offset = 10; 0; 10; 0;
+fig_offset = 0; 10; 0;
 
 figure(98 + fig_offset);
 
 has_shown = false;
 
 frame_cnt = 1;
+TraceInfo = {};
 for(i = 1 : length(cur_frames))
     
     
@@ -147,7 +152,11 @@ for(i = 1 : length(cur_frames))
     frame_cnt = frame_cnt + 1;
     
     [camIds_target] = findClosestFrame(cur_frames(i), timestamp1, timestamp2, timestamp3, timestamp4);
-    [camIds_host] = findClosestFrame(host_frames(i), timestamp1, timestamp2, timestamp3, timestamp4);
+    if (length(host_frames) == 1)
+        [camIds_host] = findClosestFrame(host_frames(1), timestamp1, timestamp2, timestamp3, timestamp4);
+    else
+        [camIds_host] = findClosestFrame(host_frames(i), timestamp1, timestamp2, timestamp3, timestamp4);
+    end
     
     host_cids = unique(cur_trace(:,14));
     cur_cids = unique(cur_trace(:,15));
@@ -160,39 +169,64 @@ for(i = 1 : length(cur_frames))
         for j = 1 : size(trace_temp,1)
             pid = trace_temp(j, 11);
             cur_time = trace_temp(j, 1);
-%             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,14) == k & trace_info(:,16) == 0),:);
-%             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,16) == 0),:);
+            %             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,14) == k & trace_info(:,16) == 0),:);
+            %             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,16) == 0),:);
             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) == cur_time & trace_info(:,15) == k & trace_info(:,16) == 0),:);
             within_range = cur_trace(1,1) - all_vms_by_pid(:,1) < max_time_diff*1e9;
             %             all_vms_by_pid = all_vms_by_pid(max([1 size(all_vms_by_pid,1)-max_len]):end,:);
             all_vms_by_pid = all_vms_by_pid; %(within_range,:);
-            uv = all_vms_by_pid(:,[25 26 11 12 13]);
+            %             if(all_vms_by_pid(1,11) == 261)
+            %                xdlhjk = 1;
+            %             end
+            uv = all_vms_by_pid(:,[25 26 11 12 13 27]);
             cur_uv{k,1}{j,1} = uv;
         end
         
         dirCam_target = dirCams{k};
         target_imgs{k,1} = (imread(fullfile(inputDir, camInfo(k).name, 'images',dirCam_target(camIds_target(k)).name)));
     end
-     for(k = 1 : 4)
+    
+    TraceInfo{i,1} = cur_uv;
+    TraceInfo{i,2} = target_imgs;
+    
+    for(k = 1 : 4)
         % 按照相机id去组织trace, 这个相机下共有多少个vm，这里要组织trace矩阵了
         host_id = find(cur_trace(:, 14) == k);
-        trace_temp_host =  cur_trace(host_id, :);
+        trace_temp_host_ =  cur_trace(host_id, :);
+        host_pids = trace_temp_host_(:,11);
+        [a1,a2,a3] = unique(host_pids);
+        trace_temp_host = trace_temp_host_(a2,:);
         host_uv{k,1} = {};
         for j = 1 : size(trace_temp_host,1)
             pid = trace_temp_host(j, 11);
             host_time = trace_temp_host(j, 3);
-%             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,14) == k & trace_info(:,16) == 0),:);
+            %             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,1) <= cur_time & trace_info(:,15) == k & trace_info(:,14) == k & trace_info(:,16) == 0),:);
             all_vms_by_pid = trace_info(find(trace_info(:,11) == pid & trace_info(:,3) == host_time & trace_info(:,14) == k & trace_info(:,16) == 0),:);
             within_range = cur_trace(1,1) - all_vms_by_pid(:,1) < max_time_diff*1e9;
             %             all_vms_by_pid = all_vms_by_pid(max([1 size(all_vms_by_pid,1)-max_len]):end,:);
-            all_vms_by_pid = all_vms_by_pid; %(within_range,:);
-            uv = all_vms_by_pid(:,[20 21 11 12 13]);
+            %             all_vms_by_pid = all_vms_by_pid; %(within_range,:);
+            if(all_vms_by_pid(1,11) == 261)
+                xdlhjk = 1;
+            end
+            all_vms_by_pid = all_vms_by_pid(1,:); %(within_range,:);
+            uv = all_vms_by_pid(:,[20 21 11 12 13 27]);
             host_uv{k,1}{j,1} = uv;
         end
         
         dirCam_host = dirCams{k};
         host_imgs{k,1} = (imread(fullfile(inputDir, camInfo(k).name, 'images',dirCam_host(camIds_host(k)).name)));
     end
+    
+    TraceInfo{i,3} = host_uv;
+    TraceInfo{i,4} = host_imgs;
+    TraceInfo{i,5} = cur_frames(i);
+    
+    
+    continue;
+    
+    
+    
+    
     
     img_big = uint8(zeros(480*2, 640*2));
     img_big(1:480,1:640) = target_imgs{2};
@@ -283,7 +317,7 @@ for(i = 1 : length(cur_frames))
             end
         end
     end
-%     title(sprintf('duration: %fs', duration));
+    %     title(sprintf('duration: %fs', duration));
     saveas(gcf, fullfile(save_name, sprintf('%010d.png', round(duration*10000))));
     drawnow;
 end

@@ -6,6 +6,41 @@ show_fig = true; false;
 save_vid = true; false;
 
 
+%% cur_time  |  first_frame_loss  |  cur_frame_loss   |  max_usage   |    min_usage    |  max_dist_score  | min_dist_score   |   max_rt  |   min_rt   |  max_t  |  min_t  |mean_occup_ratio  |  kf_kind  |
+%%    1      |         2          |        3          |       4      |        5        |        6         |        7         |     8     |      9     |   10    |    11   |        12        |     13    |
+
+if 0
+    a = load('G:\matlab\data\direct\gt\D2_004\imgs_kf\loss.txt');
+    figure,plot([a(:,2:3) a(:,4)./10 a(:,5)./10])
+    figure,subplot(2,2,1);plot(1-a(:,4));title('1-usage');
+    subplot(2,2,2);plot(a(:,5));title('parallax');
+    subplot(2,2,3);plot(1-a(:,6));title('1-occup');
+    subplot(2,2,4);plot([1-a(:,4)] + a(:,5) + [1-a(:,6)]);title('combined');
+    a(a(:,8) == 1,8) = 0;
+    weight = [0.5 0.5 1];
+    weight = [1 2 0];figure,subplot(4,1,1);plot(weight(1).*(1-a(:,4)));title('1-usage');subplot(4,1,2);plot(weight(2).*a(:,5));title('parallax');subplot(4,1,3);plot(weight(3).*(1-a(:,6)));title('1-occup');subplot(4,1,4);plot(weight(1).*[1-a(:,4)] + weight(2).*a(:,5) + weight(3).*[1-a(:,6)]);hold on;plot(a(:,8));title('combined');
+    weight = [2 0.2 0];figure,subplot(4,1,1);plot((1-weight(1).*a(:,4)));title('1-usage');subplot(4,1,2);plot(weight(2).*a(:,5));title('parallax');subplot(4,1,3);plot((1-weight(3).*a(:,6)));title('1-occup');subplot(4,1,4);plot([1-weight(1).*a(:,4)] + weight(2).*a(:,5) + [1-weight(3).*a(:,6)]);hold on;plot(a(:,8));title('combined');
+    
+    a = load('G:\matlab\data\direct\gt\D2_004\loss.txt');
+    a = a(2:end,:);
+    a(:,1) = a(:,1) - a(1,1);
+    a(a(:,13) == 1,13) = 0;
+    weight = [1 1 1];figure,subplot(4,1,1);plot(a(:,1), weight(1).*(1-a(:,4)));title('1-usage');
+    subplot(4,1,2);plot(a(:,1), weight(2).*a(:,7));title('parallax');
+    subplot(4,1,3);plot(a(:,1), weight(3).*(1-a(:,12)));title('1-occup');
+    subplot(4,1,4);plot(a(:,1), weight(1).*[1-a(:,4)] + weight(2).*a(:,7) + weight(3).*[1-a(:,12)]);hold on;plot(a(:,1), a(:,13));title('combined');
+    
+    
+    a = load('G:\matlab\data\direct\gt\D2_004\loss.txt');
+    a = a(2:end,:);
+    a(:,1) = a(:,1) - a(1,1);
+    a(a(:,13) == 1,13) = 0;
+    figure, subplot(3,1,1);plot(a(:,1), a(:,8:9));title('min Rt');
+    subplot(3,1,2);plot(a(:,1), a(:,10:11));title('min t');
+    subplot(3,1,3);plot(a(:,1), 0.001*sqrt(a(:,9)) + 0.04*sqrt(a(:,11)));
+    hold on;plot(a(:,1), a(:,13));title('min t');
+    
+end
 
 if ~show_fig
     save_vid = false;
@@ -182,6 +217,41 @@ end_pixel = [1466*1 657];
 
 
 
+inputDir = 'G:\matlab\data\direct\gt\D2_004\imgs_kf\imgs';
+total_duration = 115.4;
+start_pixel = [152*1 651];
+end_pixel = [1469*1 651];
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_004\imgs_kf_bad\imgs';
+total_duration = 115.4;
+start_pixel = [149*1 657];
+end_pixel = [1466*1 657];
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_009\1\imgs';
+total_duration = 89.6;
+start_pixel = [149*1 644];
+end_pixel = [1494*1 644];
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_011\2\imgs';
+total_duration = 89.7;
+start_pixel = [151*1 616];
+end_pixel = [1497*1 616];
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -262,7 +332,7 @@ cur_pix_list = [];
 if save_vid
     v = VideoWriter(fullfile(inputDir, 'trace_error.avi'),'Uncompressed AVI');
 %     v = VideoWriter(fullfile(inputDir, 'trace_error.avi'), 'Indexed AVI');
-    v.FrameRate = 10;
+    v.FrameRate = 30;60; 30; % 10;
     open(v);
 end
 close_window_interval = 100;
@@ -335,6 +405,7 @@ for i = 1 : length(a)
        drawnow;
        frame = getframe(gcf);
        image =  imresize(frame.cdata(28:922, 493:1406,:),0.5);
+%        image =  imresize(frame.cdata(28:922, 493:1406,:),1);
        if save_vid
            writeVideo(v,image);
        end

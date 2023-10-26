@@ -1,6 +1,14 @@
-function plotPath(data, clr)
+function plotPath(data, varargin)
+% function plotPath(data, clr, varargin)
+
+if nargin == 1
+    scale = 0.5 ;
+else
+    scale = varargin{1};
+end
+
 hold on;
-scale = 0.5 ;
+
 if 0
     
     % %     pcshow(UU(:,UU(1,:)<XX & UU(3,:)<ZZ)', [1 0 0], 'VerticalAxis', 'Y', 'VerticalAxisDir', 'Down');
@@ -35,17 +43,17 @@ else
         title('Reconstructed 3-D Scene');
         hold on
     else
-%         if flag
-            pcshow([data(:,1), data(:,2), data(:,3)], clr, 'VerticalAxis', 'Y', 'VerticalAxisDir', 'Down');
-%         end
+        %         if flag
+        pcshow([data(:,1), data(:,2), data(:,3)], clr, 'VerticalAxis', 'Y', 'VerticalAxisDir', 'Down');
+        %         end
         plot3(data(1,1), data(1,2), data(1,3),'sb' ,'MarkerSize',8,'LineWidth',8);
         plot3(data(:,1), data(:,2), data(:,3), '-o', 'Color',clr);
         xlabel('X (mm)');
         ylabel('Y (mm)');
         zlabel('Z (mm)');
-%         if flag
-            set(gca,  'CameraUpVector',[0 -1 0],'DataAspectRatio',[1 1 1]);
-%         end
+        %         if flag
+        set(gca,  'CameraUpVector',[0 -1 0],'DataAspectRatio',[1 1 1]);
+        %         end
         title('Reconstructed 3-D Scene');
         hold on
         return;

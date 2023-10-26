@@ -3,7 +3,7 @@ function showTrace(varargin)
 
 
 % showTrace('point_trace_statistics.txt')
-
+save_vid = false; true;
 
 close all;
 
@@ -12,6 +12,16 @@ save_name = 'G:\matlab\data\direct\gt\D2_001\imgs';
 
 inputDir = 'G:\matlab\data\direct\gt\D2_011';
 save_name = 'G:\matlab\data\direct\gt\D2_011\imgs';
+
+
+imgDir = 'G:\matlab\data\direct\gt\D2_011';
+inputDir = 'G:\matlab\data\direct\gt\D2_011\4';
+save_name = 'G:\matlab\data\direct\gt\D2_011\4\imgs';
+
+
+% imgDir = 'G:\matlab\data\direct\gt\D2_011';
+% inputDir = 'G:\matlab\data\direct\gt\D2_011\3';
+% save_name = 'G:\matlab\data\direct\gt\D2_011\3\imgs';
 
 
 % inputDir = 'G:\matlab\data\direct\gt\D2_004';
@@ -43,6 +53,18 @@ if(~exist('trace_info','var'))
    trace_info = point_trace; 
 end
 
+trace_info0 = trace_info;
+
+trace_info = trace_info(trace_info(:,29) > 0,:);
+
+
+
+vkf_id = find(trace_info(:,29) == 2);
+vkf_timestamp = unique(trace_info(:,3));
+
+
+trace_info = trace_info0;
+
 
 vig{1,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_0.png'))./65535;
 vig{2,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_1.png'))./65535;
@@ -62,11 +84,11 @@ catch
 end
 
 MakeDirIfMissing(save_name);
-camInfo = dir(fullfile(inputDir, 'Camera*'));
-dirCam0 = dir(fullfile(inputDir, camInfo(1).name,'images','*.bmp'));
-dirCam1 = dir(fullfile(inputDir, camInfo(2).name,'images','*.bmp'));
-dirCam2 = dir(fullfile(inputDir, camInfo(3).name,'images','*.bmp'));
-dirCam3 = dir(fullfile(inputDir, camInfo(4).name,'images','*.bmp'));
+camInfo = dir(fullfile(imgDir, 'Camera*'));
+dirCam0 = dir(fullfile(imgDir, camInfo(1).name,'images','*.bmp'));
+dirCam1 = dir(fullfile(imgDir, camInfo(2).name,'images','*.bmp'));
+dirCam2 = dir(fullfile(imgDir, camInfo(3).name,'images','*.bmp'));
+dirCam3 = dir(fullfile(imgDir, camInfo(4).name,'images','*.bmp'));
 dirCams = {dirCam0, dirCam1, dirCam2, dirCam3};
 
 timestamp1 = zeros(length(dirCam0),1);
@@ -87,8 +109,8 @@ for i = 1 : length(dirCam3)
 end
 
 
-%% cur_time  |  cur_fid   | host_time   | host_fid   |    Twb    | seed_id   | rho   | rho1d  |  host_cid |  target_cid  | is_outlier |    host_dir   |    host_uv |  target_dir  |   target_uv
-%%    1      |     2      |      3      |       4    |   5:10    |   11      |   12  |  13    |    14     |      15      |       16   |    17:19      |   20:21    |    22:24     |     25:26
+%% cur_time  |  cur_fid   | host_time   | host_fid   |    Twb    | seed_id   | rho   | rho1d  |  host_cid |  target_cid  | is_outlier |    host_dir   |    host_uv |  target_dir  |   target_uv | first_frame_loss  | cur_frame_loss |  frame_kind  |
+%%    1      |     2      |      3      |       4    |   5:10    |   11      |   12  |  13    |    14     |      15      |       16   |    17:19      |   20:21    |    22:24     |     25:26   |        27         |       28       |       29     |
 
 
 trace_info(:,[14 15 20 21 25 26]) = trace_info(:,[14 15 20 21 25 26]) + 1;
@@ -98,7 +120,7 @@ cur_frames = unique(trace_info(:,1));
 ArrangeTrace(trace_info);
 
 max_len = 3;
-max_time_diff = 100; 0.2; 1; 20; 0.2;
+max_time_diff = 10;20;1;100; 0.2; 1; 20; 0.2;
 
 
 first_time = trace_info(1,3);
@@ -107,16 +129,30 @@ total_duration = (last_time - first_time)*1e-9;
 
 
 
+colorMat = [1 0 0; 0 1 0; 0 0 1; 0 1 1; 1 0 1; 1 1 0;];
+colorMat = [colorMat;colorMat;colorMat;colorMat;colorMat;colorMat];
+
+
+
 check_time_window = [70 90];
 check_time_window = [10 90];
 check_time_window = [13 90];
 check_time_window = [0 90];
-
+% check_time_window = [10 20];
+check_time_window = [-10 11110];
 close_window_interval = 20;
 
 figure(98);
 
 has_shown = false;
+
+
+if save_vid
+v = VideoWriter(fullfile(inputDir, 'trace.avi'),'Uncompressed AVI');
+v.FrameRate = 30;60; 30; % 10;
+open(v);
+end
+
 
 frame_cnt = 1;
 for(i = 1 : length(cur_frames))
@@ -159,12 +195,19 @@ for(i = 1 : length(cur_frames))
             within_range = cur_trace(1,1) - all_vms_by_pid(:,1) < max_time_diff*1e9;
             %             all_vms_by_pid = all_vms_by_pid(max([1 size(all_vms_by_pid,1)-max_len]):end,:);
             all_vms_by_pid = all_vms_by_pid(within_range,:);
+            host_time = all_vms_by_pid(1,3);
+            
+            color_id = find(vkf_timestamp == host_time);
+            
+            assert(~isempty(color_id))
+            
+            
             uv = all_vms_by_pid(:,[25 26 11 12 13]);
-            cur_uv{k,1}{j,1} = uv;
+            cur_uv{k,1}{j,1} = [uv color_id.*ones(size(uv,1),1)];
         end
         
         dirCam_target = dirCams{k};
-        target_imgs{k,1} = (imread(fullfile(inputDir, camInfo(k).name, 'images',dirCam_target(camIds_target(k)).name)));
+        target_imgs{k,1} = (imread(fullfile(imgDir, camInfo(k).name, 'images',dirCam_target(camIds_target(k)).name)));
     end
     img_big = uint8(zeros(480*2, 640*2));
     img_big(1:480,1:640) = target_imgs{2};
@@ -181,7 +224,7 @@ for(i = 1 : length(cur_frames))
             for jj = 1 : length(cur_uv{k,1})
                 if(~isempty(cur_uv{k,1}{jj,1}))
                     plot(cur_uv{k,1}{jj,1}(:,1), 480 + cur_uv{k,1}{jj,1}(:,2),'-g');
-                    plot(cur_uv{k,1}{jj,1}(end,1), 480 + cur_uv{k,1}{jj,1}(end,2),'*r');
+                    plot(cur_uv{k,1}{jj,1}(end,1), 480 + cur_uv{k,1}{jj,1}(end,2),'*','Color', colorMat(cur_uv{k,1}{jj,1}(end,6),:));
                     text(cur_uv{k,1}{jj,1}(end,1)+2,480 + cur_uv{k,1}{jj,1}(end,2)+2, num2str(cur_uv{k,1}{jj,1}(end,3)),'Color', [1 1 0]);
                 end
             end
@@ -189,7 +232,7 @@ for(i = 1 : length(cur_frames))
             for jj = 1 : length(cur_uv{k,1})
                 if(~isempty(cur_uv{k,1}{jj,1}))
                     plot(cur_uv{k,1}{jj,1}(:,1), cur_uv{k,1}{jj,1}(:,2),'-g');
-                    plot(cur_uv{k,1}{jj,1}(end,1), cur_uv{k,1}{jj,1}(end,2),'*r');
+                    plot(cur_uv{k,1}{jj,1}(end,1), cur_uv{k,1}{jj,1}(end,2),'*','Color', colorMat(cur_uv{k,1}{jj,1}(end,6),:));
                     text(cur_uv{k,1}{jj,1}(end,1)+2,cur_uv{k,1}{jj,1}(end,2)+2, num2str(cur_uv{k,1}{jj,1}(end,3)),'Color', [1 1 0]);
                 end
             end
@@ -197,7 +240,7 @@ for(i = 1 : length(cur_frames))
             for jj = 1 : length(cur_uv{k,1})
                 if(~isempty(cur_uv{k,1}{jj,1}))
                     plot(640+cur_uv{k,1}{jj,1}(:,1), cur_uv{k,1}{jj,1}(:,2),'-g');
-                    plot(640+cur_uv{k,1}{jj,1}(end,1), cur_uv{k,1}{jj,1}(end,2),'*r');
+                    plot(640+cur_uv{k,1}{jj,1}(end,1), cur_uv{k,1}{jj,1}(end,2),'*','Color', colorMat(cur_uv{k,1}{jj,1}(end,6),:));
                     text(640+cur_uv{k,1}{jj,1}(end,1)+2, cur_uv{k,1}{jj,1}(end,2)+2, num2str(cur_uv{k,1}{jj,1}(end,3)),'Color', [1 1 0]);
                 end
             end
@@ -205,18 +248,29 @@ for(i = 1 : length(cur_frames))
             for jj = 1 : length(cur_uv{k,1})
                 if(~isempty(cur_uv{k,1}{jj,1}))
                     plot(640+cur_uv{k,1}{jj,1}(:,1), 480+cur_uv{k,1}{jj,1}(:,2),'-g');
-                    plot(640+cur_uv{k,1}{jj,1}(end,1), 480+cur_uv{k,1}{jj,1}(end,2),'*r');
+                    plot(640+cur_uv{k,1}{jj,1}(end,1), 480+cur_uv{k,1}{jj,1}(end,2),'*','Color', colorMat(cur_uv{k,1}{jj,1}(end,6),:));
                     text(640+cur_uv{k,1}{jj,1}(end,1)+2,480 + cur_uv{k,1}{jj,1}(end,2)+2, num2str(cur_uv{k,1}{jj,1}(end,3)),'Color', [1 1 0]);
                 end
             end
         end
     end
     title(sprintf('duration: %fs', duration));
-    saveas(gcf, fullfile(save_name, sprintf('%010d.png', round(duration*10000))));
+%     saveas(gcf, fullfile(save_name, sprintf('%010d.png', round(duration*10000))));
     drawnow;
+    
+    frame = getframe(gcf);
+    image =  imresize(frame.cdata(22:904, 361:1530,:),1);
+    imwrite(image,fullfile(save_name,sprintf('point_trace_%010d.png', round(duration*10000))));
+    %        image =  imresize(frame.cdata(28:922, 493:1406,:),1);
+    if save_vid
+        writeVideo(v,image);
+    end
+    
 end
 
-
+if save_vid
+    close(v);
+end
 
 end
 

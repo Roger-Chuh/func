@@ -68,8 +68,8 @@ save_name = 'G:\matlab\data\direct\gt\D2_001\imgs';
 % inputDir = 'G:\matlab\data\direct\gt\D2_007';
 % save_name = 'G:\matlab\data\direct\gt\D2_007\imgs';
 
-% inputDir = 'G:\matlab\data\direct\gt\D2_004';
-% save_name = 'G:\matlab\data\direct\gt\D2_004\imgs';
+inputDir = 'G:\matlab\data\direct\gt\D2_004';
+save_name = 'G:\matlab\data\direct\gt\D2_004\imgs';
 
 
 vig{1,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_0.png'))./65535;
@@ -118,13 +118,13 @@ idx_sfst = 1;
 
 draw_pt_only = 0;
 
-trace_single_pid = false; true; false; true; false; true;
+trace_single_pid = true;false; true; false; true; false; true;
 save_trace = false; true;
 
 
 
 check_seed_id = 15; 4756;168; 566;485;840;1390;1296; 956; 1110; 236;172; 651; 595;610; 602;16;
-check_seed_id = 1531; 194;994; 194; 227; 242;6;7;6; 237; 291; 1495; 148; 333;6;4372;333;20;18; 395; 26; 531; 100;1050;
+check_seed_id = 527;1531; 194;994; 194; 227; 242;6;7;6; 237; 291; 1495; 148; 333;6;4372;333;20;18; 395; 26; 531; 100;1050;
 
 camInfo = dir(fullfile(inputDir, 'Camera*'));
 
@@ -436,7 +436,7 @@ else
             end
             subplot(2,3,6);title(sprintf('seed id£º %d, target fid: %d, trace len: [%d / %d], epi search suc: %d, final suc: %d\n[max min] epi len: [%f %f], fully conv: %d\nrho: %f, rho align1d: %f\nquality: [%f / %f], step: %f deg\nsigma: %f, b: %f\nfail count: %f, [angle-max angle angle0]: [%f %f %f]\n[best_i steps0 steps suc-steps]: [%d %d %d %d]\n[valid / full = ratio] angle: [%f / %f = %f]\nepi len = [%.2f, %.2f, %.2f, %.2f]\n[second best / best] = [%f / %f] = %f\n[mean norm] best: [%0.3f %0.3f]\n[host / target] level: [%d / [%d %d %d %d]',seed, trace_info.target_fid, j, length(trace_list), trace_info.is_epi_search_success, trace_info.is_success, trace_info.max_epi_len, trace_info.min_epi_len, trace_info.is_fully_conv, trace_info.rho, trace_info.rho_align1d, trace_info.quality, trace_info.quality2, trace_info.step, trace_info.sigma,trace_info.b,trace_info.fail_count, trace_info.angle_max, trace_info.angle, trace_info.angle0, trace_info.best_i, trace_info.n_step0, trace_info.n_step, trace_info.success_step, trace_info.epi_angle_valid, trace_info.epi_angle_full, trace_info.epi_angle_valid/trace_info.epi_angle_full,dist(1),dist(2),dist(3),dist(4),zmssd_second_best,zmssd_best, zmssd_second_best/zmssd_best, trace_info.mean_best, trace_info.norm_best, trace_info.host_level, trace_info.search_levels(1), trace_info.search_levels(2), trace_info.search_levels(3), trace_info.search_levels(4)));
             subplot(2,3,3);plot(trace_info.rho_list);hold on;plot(length(trace_info.rho_list),trace_info.rho_list(end),'or');
-            saveas(gcf, fullfile(save_name, sprintf('trace_%018d.png', trace_info.cur_time)));
+%             saveas(gcf, fullfile(save_name, sprintf('trace_%018d.png', trace_info.cur_time)));
         end
     end
     
