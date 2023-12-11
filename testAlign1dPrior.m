@@ -5,7 +5,7 @@ add_noise = 0;
 use_5dof = 0;
 fix_rot = 0;
 right_perturbation = 0;
-
+use_prior = 1;
 pose_num = 1;
 cam_num = 4;
 
@@ -26,6 +26,7 @@ T_bc{3,1} = inv(pose{2}) * pose{4,1};
 T_bc{4,1} = inv(pose{2}) * pose{5,1};
 
 XYZ = [10 20 1300; 12 22 1302;13 23 1303;14 24 1304;15 25 1305;16 26 1306;17 27 1307;18 28 1308;19 29 1309;161 261 13106;126 226 12306;136 236 13306];
+XYZ = XYZ(1:1,:);
 [host_bearings, dist] = NormalizeVector(XYZ);
 lambdas = 1 ./ dist;
 
@@ -57,6 +58,7 @@ iter_num = 10;
 lambdas_use = lambdas + 0.001;
 
 T_target_use = T_target * [rodrigues([1.1 2.2 -0.3]) [0.1 10 -20]'; 0 0 0 1];
+T_target_use = T_target * [rodrigues([0.01 0.02 -0.03]) [0.1 10 -20]'; 0 0 0 1];
 pose_offset = 6;
 point_num = size(XYZ,1);
 for k = 1 : iter_num
@@ -70,11 +72,12 @@ for k = 1 : iter_num
     Twc0_host = Twb_host * T_bc{1,1};
     
     
-    [err2, d_err_d_target_pose2] = computeRelativePoseFactor(T_target_use, T_target);
-    fx = fx + norm(err2);
-    H(1:pose_offset,1:pose_offset) = H(1:pose_offset,1:pose_offset) + d_err_d_target_pose2' * d_err_d_target_pose2;
-    b(1:pose_offset,1) = b(1:pose_offset,1) + (-d_err_d_target_pose2' * err2);
-    
+    if use_prior
+        [err2, d_err_d_target_pose2] = computeRelativePoseFactor(T_target_use, T_target);
+        fx = fx + norm(err2);
+        H(1:pose_offset,1:pose_offset) = H(1:pose_offset,1:pose_offset) + d_err_d_target_pose2' * d_err_d_target_pose2;
+        b(1:pose_offset,1) = b(1:pose_offset,1) + (-d_err_d_target_pose2' * err2);
+    end
     for ii = 1 : point_num
         lambda_use = lambdas_use(ii);
         point_id = ii;
@@ -298,7 +301,9 @@ function [err, d_err_d_target_pose] = computeRelativePoseFactor(T, T_prior)
 
 deltaPose = inv(T) * T_prior;
 
-err = [rodrigues(deltaPose(1:3,1:3)); deltaPose(1:3,4)];
+err1 = [rodrigues(deltaPose(1:3,1:3)); deltaPose(1:3,4)];
+err = LogSE3(deltaPose);
+
 
 d_err_d_target_pose = zeros(6,6);
 d_err_d_target_pose(1:3,1:3) = -JrInv(err(1:3)) * T_prior(1:3,1:3)';  % d_R_err_d_R
@@ -333,3 +338,19 @@ else
 end
 
 end
+function drdp = LogSE3(T) 
+  drdp = zeros(6,1);
+  R = T(1:3,1:3);
+  omega = rodrigues(R);
+  theta = norm(omega);
+  drdp(1:3) = omega;
+  Omega = SkewSymMat(omega);
+  if (theta < 1e-10) 
+    V_inv = eye(3) - 0.5 * Omega + (1. / 12.) * (Omega * Omega);
+    drdp(4:6) = V_inv * T(1:3,4);
+   else 
+    half_theta = (0.5) * theta;
+    V_inv = (eye(3) - (0.5) * Omega + ((1) - theta * cos(half_theta) / ((2) * sin(half_theta))) / (theta * theta) * (Omega * Omega));
+    drdp(4:6) = V_inv * T(1:3,4);
+  end
+  end

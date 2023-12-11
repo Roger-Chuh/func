@@ -1,9 +1,9 @@
 function drawGradDir2(varargin)
 
 global extra_patch_coord patch_offset uneven_patch patch_16 patch_size
-patch_size = 49;
+patch_size = 8;49;
 close all;
-patch_16 = true;
+patch_16 = false;true;
 uneven_patch = true;
 patch_offset = [[0, 0]; [-1, -1]; [1, -1]; [-1, 1]; [-2, 0]; [0, -2]; [2, 0]; [0, 2]];
 patch_offset = [[0, 0]; [-1, -1]; [-2, -2]; [1, -1]; [2, -2]; [-1, 1]; [-2, 2]; [2, 2]];
@@ -68,8 +68,13 @@ save_name = 'G:\matlab\data\direct\gt\D2_001\imgs';
 % inputDir = 'G:\matlab\data\direct\gt\D2_007';
 % save_name = 'G:\matlab\data\direct\gt\D2_007\imgs';
 
-inputDir = 'G:\matlab\data\direct\gt\D2_004';
-save_name = 'G:\matlab\data\direct\gt\D2_004\imgs';
+% inputDir = 'G:\matlab\data\direct\gt\D2_004';
+% save_name = 'G:\matlab\data\direct\gt\D2_004\imgs';
+
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_009';
+save_name = 'G:\matlab\data\direct\gt\D2_009\imgs';
 
 
 vig{1,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_0.png'))./65535;
@@ -118,7 +123,7 @@ idx_sfst = 1;
 
 draw_pt_only = 0;
 
-trace_single_pid = true;false; true; false; true; false; true;
+trace_single_pid = false;true;false; true; false; true; false; true;
 save_trace = false; true;
 
 

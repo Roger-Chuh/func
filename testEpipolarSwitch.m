@@ -18,7 +18,9 @@ host_pix = host_pix(1:2)';
 [target_pix, tgtPt3d] = TransformAndProject(depth.*xyz, K, T(1:3, 1:3), T(1:3, 4));
 [target_pix_err, tgtPt3d] = TransformAndProject((depth+100).*xyz, K, T(1:3, 1:3), T(1:3, 4));
 target_pix = target_pix_err;
-target_pix = target_pix + [1 1];
+if 0
+    target_pix = target_pix + [1 1];
+end
 target_pix_norm = inv(K)*[target_pix 1]';
 
 

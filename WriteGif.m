@@ -18,6 +18,7 @@ for idx = 1 : nImages
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),[480,1280]);
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([640,1706])./1);
     img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([960,1280])./1);
+    img = imresize(imread(fullfile(inputDir, dirInfo(idx).name)),round([740,920])./1);
 %     img = img(:,1:1706/2,:);
     if(ndims(img) ~= 3)
         img = cat(3, img, img, img);
