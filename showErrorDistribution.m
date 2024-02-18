@@ -41,43 +41,60 @@ inputDir = 'G:\matlab\data\distrib\exp\916';
 inputDir = 'G:\matlab\data\distrib\exp\793';
 inputDir = 'G:\matlab\data\distrib\exp\cur';
 inputDir = 'G:\matlab\data\distrib\d1_ae';
+inputDir = 'G:\matlab\data\direct\gt\D2_011\4\error_distri';
 
-
-
+board_num = 3;5;
 
 
 dirInfo = dir(fullfile(inputDir, '*.txt'));
+if board_num == 5 % 20240205
+    assert(length(dirInfo) == 20);
+    camId = [1:5:20];
+else
+    assert(length(dirInfo) == 6);
+    camId = [1:board_num:6];
+end
+% camId = [1:5:20];
 
-assert(length(dirInfo) == 20);
 
-camId = [1:5:20];
 
+
+
+image_width = 1280;640;
+image_height = 1024;480;
+
+is_rgb_stereo = 1;
+
+if board_num == 3
+%     camId = [1:board_num:20];
+%    camId = camId(1:2); 
+end
 
 Mat3 = [];
 for i = 1 : length(camId)
 %     a = load(fullfile(inputDir, dirInfo(camId(i)).name));
     a = [];
 %     for j = camId(i)+0:camId(i)+4
-    for j = camId(i)+0:camId(i)+4
+    for j = camId(i)+0:camId(i)+(board_num-1)
         a = [a; load(fullfile(inputDir, dirInfo(j).name))];
         
     end
     [~, err] = NormalizeVector(a(:,3:4));  
     pix = round(a(:,1:2));
-    ind = sub2ind([480 640], pix(:,2),pix(:,1));
+    ind = sub2ind([image_height image_width], pix(:,2),pix(:,1));
     pix = round(a(:,1:2));
-    ind = sub2ind([480 640], pix(:,2),pix(:,1));
-    mat = zeros(480, 640);
+    ind = sub2ind([image_height image_width], pix(:,2),pix(:,1));
+    mat = zeros(image_height, image_width);
     mat(ind) = err;
     mat2 = imgaussfilt(mat,2);
     scale = median(mat(mat~=0))/median(mat2(mat2~=0));
-    [xMat, yMat] = meshgrid(1:640,1:480);
+    [xMat, yMat] = meshgrid(1:image_width,1:image_height);
     
     mat3 = scale.*mat2;
     
     Mat3 = [Mat3; mat3'];
     
-    figure,subplot(1,2,1);surf(xMat, yMat, mat3);subplot(1,2,2);contour(mat3, 50);axis equal;
+    figure,subplot(1,2,1);surf(xMat, yMat, mat3);subplot(1,2,2);contour(mat3, 50);axis equal;colorbar;
     
 %     figure,subplot(1,2,1);surface(xMat, yMat, mat);
 %     subplot(1,2,2),surf(imresize(xMat,0.5), imresize(yMat,0.5), 2.*imresize(mat,0.5));

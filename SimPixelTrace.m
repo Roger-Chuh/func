@@ -4,7 +4,7 @@ function SimPixelTrace()
 % T = [rodrigues([0.9 0.2 0.3]) [100 200 200]';0 0 0 1];
 angle = 100;
 trans_scale = 0.3;
-T = [roty(angle) trans_scale.*[1000 -1000 1000]';0 0 0 1];
+T = [roty(angle) trans_scale.*(-[1000 -1000 1000]');0 0 0 1];
 K = [200 0 320;0 200 240;0 0 1];
 
 width = 640;
@@ -22,6 +22,22 @@ host_pix_ = pflat(K*xyz');
 host_pix = host_pix_(1:2)';
 
 
+
+KR = K * T(1:3,1:3);
+Kt = K * T(1:3,4);
+host_ray = inv(K) * [host_pix 1]';
+KRray = KR*host_ray;
+iDepth = idepth;
+pt = KRray + Kt*iDepth;
+pt2d = pt(1:2) / pt(3);
+
+pxInf = KRray(1:2) / KRray(3);
+
+target_pix_check_inf = RKi * [host_pix 1]' + t*0.00000001;
+target_pix_check_inf = target_pix_check_inf./target_pix_check_inf(3);
+target_pix_inf = K*target_pix_check_inf;
+
+
 target_pix_check = RKi * [host_pix 1]' + t*idepth;
 target_pix_check = target_pix_check./target_pix_check(3);
 target_pix = K*target_pix_check;
@@ -33,7 +49,7 @@ pole_in_1 = pole1./pole1(3);
 pole2 = null(F');
 pole_in_2 = pole2./pole2(3);
 
-pole_in_2_check = pflat(K*T(1:3,4));
+pole_in_2_check = pflat(K*T(1:3,4)); % 这个验证了target帧的极点
 
 epiline_host_in_target = F*host_pix_; %这是target帧上极线的方向，但是极限的方向是用host的pixel坐标计算得到
 epiline_host_in_target = epiline_host_in_target./norm(epiline_host_in_target(1:2));

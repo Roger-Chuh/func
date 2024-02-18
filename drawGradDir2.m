@@ -1,9 +1,9 @@
 function drawGradDir2(varargin)
 
 global extra_patch_coord patch_offset uneven_patch patch_16 patch_size
-patch_size = 8;49;
+patch_size = 16;8;49;
 close all;
-patch_16 = false;true;
+patch_16 = true; false;true;
 uneven_patch = true;
 patch_offset = [[0, 0]; [-1, -1]; [1, -1]; [-1, 1]; [-2, 0]; [0, -2]; [2, 0]; [0, 2]];
 patch_offset = [[0, 0]; [-1, -1]; [-2, -2]; [1, -1]; [2, -2]; [-1, 1]; [-2, 2]; [2, 2]];
@@ -27,16 +27,33 @@ patch_offset = [[0, 0]; [0, -1]; [0, -2]; [0, -3]; [0, 1];
 
 
 patch_offset = [[0, 0]; [0, -1]; [0, -2]; [0, -3]; [0, 1]; [0, 2]; [0, 3];
-                                               [2, -3]; [3, -2]; [4, -1]; [2, 3]; [3, 2]; [4, 1];
-                                               [3, 0]; [4, 0]; [5, 0]];
+    [2, -3]; [3, -2]; [4, -1]; [2, 3]; [3, 2]; [4, 1];
+    [3, 0]; [4, 0]; [5, 0]];
 
 patch_offset = [[0, 0]; [-3, -3];[-2, -3];[-1, -3];[0, -3];[1, -3];[2, -3];[3, -3];
-                                                 [-3, -2];[-2, -2];[-1, -2];[0, -2];[1, -2];[2, -2];[3, -2];
-                                                 [-3, -1];[-2, -1];[-1, -1];[0, -1];[1, -1];[2, -1];[3, -1];
-                                                 [-3,  0];[-2,  0];[-1,  0];        [1,  0];[2,  0];[3,  0];
-                                                 [-3,  1];[-2,  1];[-1,  1];[0,  1];[1,  1];[2,  1];[3,  1];
-                                                 [-3,  2];[-2,  2];[-1,  2];[0,  2];[1,  2];[2,  2];[3,  2];
-                                                 [-3,  3];[-2,  3];[-1,  3];[0,  3];[1,  3];[2,  3];[3,  3]];
+    [-3, -2];[-2, -2];[-1, -2];[0, -2];[1, -2];[2, -2];[3, -2];
+    [-3, -1];[-2, -1];[-1, -1];[0, -1];[1, -1];[2, -1];[3, -1];
+    [-3,  0];[-2,  0];[-1,  0];        [1,  0];[2,  0];[3,  0];
+    [-3,  1];[-2,  1];[-1,  1];[0,  1];[1,  1];[2,  1];[3,  1];
+    [-3,  2];[-2,  2];[-1,  2];[0,  2];[1,  2];[2,  2];[3,  2];
+    [-3,  3];[-2,  3];[-1,  3];[0,  3];[1,  3];[2,  3];[3,  3]];
+patch_radius0 = 4;
+patch_offset = [[0, 0];
+    [-2 * patch_radius0, -2 * patch_radius0];
+    [-1 * patch_radius0, -1 * patch_radius0];
+    [-2 * patch_radius0, 2 * patch_radius0];
+    [-1 * patch_radius0, 1 * patch_radius0];
+    [1 * patch_radius0, 0 * patch_radius0];
+    [2 * patch_radius0, 0 * patch_radius0];
+    [3 * patch_radius0, 0 * patch_radius0];
+    [-1 * patch_radius0, 0 * patch_radius0];
+    [-2 * patch_radius0, -1 * patch_radius0];
+    [-2 * patch_radius0, 0 * patch_radius0];
+    [-2 * patch_radius0, 1 * patch_radius0];
+    [0 * patch_radius0, -1 * patch_radius0];
+    [0 * patch_radius0, 1 * patch_radius0];
+    [1 * patch_radius0, -1 * patch_radius0];
+    [1 * patch_radius0, 1 * patch_radius0]];
 use_gauss_blur = false;
 
 use_znssd = false;true;
@@ -76,6 +93,16 @@ save_name = 'G:\matlab\data\direct\gt\D2_001\imgs';
 inputDir = 'G:\matlab\data\direct\gt\D2_009';
 save_name = 'G:\matlab\data\direct\gt\D2_009\imgs';
 
+inputDir = 'G:\matlab\data\direct\gt\D2_011';
+save_name = 'G:\matlab\data\direct\gt\D2_011\imgs';
+
+
+inputDir = 'G:\matlab\data\direct\gt\D2_008';
+save_name = 'G:\matlab\data\direct\gt\D2_008\imgs';
+
+inputDir = 'G:\matlab\data\direct\gt\D2_007';
+save_name = 'G:\matlab\data\direct\gt\D2_007\imgs';
+
 
 vig{1,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_0.png'))./65535;
 vig{2,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_1.png'))./65535;
@@ -90,7 +117,7 @@ vig{4,1} = double(imread('G:\matlab\data\direct\gt\D2_002\vignette_3.png'))./655
 
 
 for i = 1 : 4
-vig{i,1}(vig{i,1} < 0.15) = nan;
+    vig{i,1}(vig{i,1} < 0.15) = nan;
 end
 
 
@@ -184,8 +211,8 @@ for i = 1 : size(Data,1)
 end
 
 
-warped_intensities_best_zm = zeros(8,1);
-warped_intensities_second_best_zm = zeros(8,1);
+warped_intensities_best_zm = zeros(16,1);zeros(8,1);
+warped_intensities_second_best_zm = zeros(16,1);zeros(8,1);
 if ~trace_single_pid
     plot_vec = [3 1 2 4];
     for i = 1 : length(cur_fids)
@@ -301,7 +328,7 @@ if ~trace_single_pid
                     zmssd_best = 2.222222;
                     zmssd_second_best = 2.222222;
                 end
-                figure(2),clf;subplot(2,1,1);imshow(host_imgs,[]);hold on;plot(trace_info.host_pix(:,1), trace_info.host_pix(:,2),'.g');plot(trace_info.host_pix(1,1), trace_info.host_pix(1,2),'xg');title(sprintf('seed id:%d, target fid: %d\nepi search suc: %d, final suc: %d, [max min] epi len: [%f %f], fully conv: %d\nrho: %f, rho align1d: %f\nquality: [%f / %f], step: %f deg\nsigma: %f, b: %f, fail count: %f, [angle-max angle angle0]: [%f %f %f]\n[best_i steps0 steps suc-steps]: [%d %d %d %d]\n[valid / full = ratio] angle: [%f / %f = %f]\nepi len = [%.2f, %.2f, %.2f, %.2f]\n[second best / best] = [%f / %f] = %f\n[mean norm] best: [%0.3f %0.3f]\n[host / target] level: [%d / [%d %d %d %d]',trace_info.seed_id, trace_info.target_fid, trace_info.is_epi_search_success, trace_info.is_success, trace_info.max_epi_len, trace_info.min_epi_len, trace_info.is_fully_conv, trace_info.rho, trace_info.rho_align1d, trace_info.quality, trace_info.quality2, trace_info.step, trace_info.sigma, trace_info.b,trace_info.fail_count, trace_info.angle_max, trace_info.angle, trace_info.angle0, trace_info.best_i, trace_info.n_step0, trace_info.n_step, trace_info.success_step, trace_info.epi_angle_valid, trace_info.epi_angle_full, trace_info.epi_angle_valid/trace_info.epi_angle_full,dist(1),dist(2),dist(3),dist(4),zmssd_second_best,zmssd_best, (zmssd_second_best/zmssd_best), trace_info.mean_best, trace_info.norm_best, trace_info.host_level, trace_info.search_levels(1), trace_info.search_levels(2), trace_info.search_levels(3), trace_info.search_levels(4)));
+                figure(2),clf;subplot(2,1,1);imshow(host_imgs,[]);hold on;plot(trace_info.host_pix(:,1), trace_info.host_pix(:,2),'.g');plot(trace_info.host_pix(1,1), trace_info.host_pix(1,2),'xg');title(sprintf('seed id:%d, target fid: %d\nepi search suc: %d, final suc: %d, [max min] epi len: [%f %f], fully conv: %d\nrho: %f, rho align1d: %f\nquality: [%f / %f], step: %f deg\nsigma: %f, b: %f, fail count: %f, [angle-max angle angle0]: [%f %f %f]\n[best_i steps0 steps suc-steps]: [%d %d %d %d]\n[valid / full = ratio] angle: [%f / %f = %f]\nepi len = [%.2f, %.2f, %.2f, %.2f]\n[second best / best] = [%f / %f] = %f\n[mean norm] best: [%0.3f %0.3f]\n[host / target] level: [%d / [%d %d %d %d]\ndo epi search: %d, rho at init: %f, has guess: %d, is neg idp: %d',trace_info.seed_id, trace_info.target_fid, trace_info.is_epi_search_success, trace_info.is_success, trace_info.max_epi_len, trace_info.min_epi_len, trace_info.is_fully_conv, trace_info.rho, trace_info.rho_align1d, trace_info.quality, trace_info.quality2, trace_info.step, trace_info.sigma, trace_info.b,trace_info.fail_count, trace_info.angle_max, trace_info.angle, trace_info.angle0, trace_info.best_i, trace_info.n_step0, trace_info.n_step, trace_info.success_step, trace_info.epi_angle_valid, trace_info.epi_angle_full, trace_info.epi_angle_valid/trace_info.epi_angle_full,dist(1),dist(2),dist(3),dist(4),zmssd_second_best,zmssd_best, (zmssd_second_best/zmssd_best), trace_info.mean_best, trace_info.norm_best, trace_info.host_level, trace_info.search_levels(1), trace_info.search_levels(2), trace_info.search_levels(3), trace_info.search_levels(4), trace_info.do_epi_search, trace_info.rho_at_init, trace_info.has_initial_guess, trace_info.is_neg_idp));
                 subplot(2,1,2);plot(trace_info.rho_list);hold on;plot(length(trace_info.rho_list),trace_info.rho_list(end),'or');
             end
             
@@ -350,7 +377,7 @@ else
             host_imgs = floor(host_imgs);
         end
         if use_grad_dir_patch
-                trace_list{1}.host_pix = trace_list{1}.host_pix_grad;
+            trace_list{1}.host_pix = trace_list{1}.host_pix_grad;
         end
         figure(1),clf;subplot(2,3,6);imshow(host_imgs,[]);hold on;plot(trace_list{1}.host_pix(:,1), trace_list{1}.host_pix(:,2),'.g');
         plot(trace_list{1}.host_pix(1,1), trace_list{1}.host_pix(1,2),'xg');
@@ -363,9 +390,9 @@ else
         for j = 1 : length(trace_list)
             
             trace_info = trace_list{j};
-%             if use_grad_dir_patch
-%                 trace_info.host_pix = trace_info.host_pix_grad;
-%             end
+            %             if use_grad_dir_patch
+            %                 trace_info.host_pix = trace_info.host_pix_grad;
+            %             end
             target_time = trace_info.cur_time;
             [camIds_target] = findClosestFrame(target_time, timestamp1, timestamp2, timestamp3, timestamp4);
             target_imgs = cell(4,1);
@@ -439,9 +466,9 @@ else
                 zmssd_best = 1.111111;
                 zmssd_second_best = 1.111111;
             end
-            subplot(2,3,6);title(sprintf('seed id： %d, target fid: %d, trace len: [%d / %d], epi search suc: %d, final suc: %d\n[max min] epi len: [%f %f], fully conv: %d\nrho: %f, rho align1d: %f\nquality: [%f / %f], step: %f deg\nsigma: %f, b: %f\nfail count: %f, [angle-max angle angle0]: [%f %f %f]\n[best_i steps0 steps suc-steps]: [%d %d %d %d]\n[valid / full = ratio] angle: [%f / %f = %f]\nepi len = [%.2f, %.2f, %.2f, %.2f]\n[second best / best] = [%f / %f] = %f\n[mean norm] best: [%0.3f %0.3f]\n[host / target] level: [%d / [%d %d %d %d]',seed, trace_info.target_fid, j, length(trace_list), trace_info.is_epi_search_success, trace_info.is_success, trace_info.max_epi_len, trace_info.min_epi_len, trace_info.is_fully_conv, trace_info.rho, trace_info.rho_align1d, trace_info.quality, trace_info.quality2, trace_info.step, trace_info.sigma,trace_info.b,trace_info.fail_count, trace_info.angle_max, trace_info.angle, trace_info.angle0, trace_info.best_i, trace_info.n_step0, trace_info.n_step, trace_info.success_step, trace_info.epi_angle_valid, trace_info.epi_angle_full, trace_info.epi_angle_valid/trace_info.epi_angle_full,dist(1),dist(2),dist(3),dist(4),zmssd_second_best,zmssd_best, zmssd_second_best/zmssd_best, trace_info.mean_best, trace_info.norm_best, trace_info.host_level, trace_info.search_levels(1), trace_info.search_levels(2), trace_info.search_levels(3), trace_info.search_levels(4)));
+            subplot(2,3,6);title(sprintf('seed id： %d, target fid: %d, trace len: [%d / %d], epi search suc: %d, final suc: %d\n[max min] epi len: [%f %f], fully conv: %d\nrho: %f, rho align1d: %f\nquality: [%f / %f], step: %f deg\nsigma: %f, b: %f\nfail count: %f, [angle-max angle angle0]: [%f %f %f]\n[best_i steps0 steps suc-steps]: [%d %d %d %d]\n[valid / full = ratio] angle: [%f / %f = %f]\nepi len = [%.2f, %.2f, %.2f, %.2f]\n[second best / best] = [%f / %f] = %f\n[mean norm] best: [%0.3f %0.3f]\n[host / target] level: [%d / [%d %d %d %d]\ndo epi search: %d, rho at init: %f, has guess: %d, is neg idp: %d',seed, trace_info.target_fid, j, length(trace_list), trace_info.is_epi_search_success, trace_info.is_success, trace_info.max_epi_len, trace_info.min_epi_len, trace_info.is_fully_conv, trace_info.rho, trace_info.rho_align1d, trace_info.quality, trace_info.quality2, trace_info.step, trace_info.sigma,trace_info.b,trace_info.fail_count, trace_info.angle_max, trace_info.angle, trace_info.angle0, trace_info.best_i, trace_info.n_step0, trace_info.n_step, trace_info.success_step, trace_info.epi_angle_valid, trace_info.epi_angle_full, trace_info.epi_angle_valid/trace_info.epi_angle_full,dist(1),dist(2),dist(3),dist(4),zmssd_second_best,zmssd_best, zmssd_second_best/zmssd_best, trace_info.mean_best, trace_info.norm_best, trace_info.host_level, trace_info.search_levels(1), trace_info.search_levels(2), trace_info.search_levels(3), trace_info.search_levels(4), trace_info.do_epi_search, trace_info.rho_at_init, trace_info.has_initial_guess, trace_info.is_neg_idp));
             subplot(2,3,3);plot(trace_info.rho_list);hold on;plot(length(trace_info.rho_list),trace_info.rho_list(end),'or');
-%             saveas(gcf, fullfile(save_name, sprintf('trace_%018d.png', trace_info.cur_time)));
+            %             saveas(gcf, fullfile(save_name, sprintf('trace_%018d.png', trace_info.cur_time)));
         end
     end
     
@@ -519,7 +546,7 @@ while ~feof(fid)    % while循环表示文件指针没到达末尾，则继续
     %     names = [names; {str(idx(end-1)+1:end)}];
     %    FrameCam = [FrameCam;[str2num(str(1:5)) str2num(str(8))] ];
     
-    offset = 25;
+    offset = 29;
     back_offset = 4;
     
     % if(~(str2double(a{end-back_offset}) == 0 || str2double(a{end-back_offset}) == 1))
@@ -533,7 +560,7 @@ while ~feof(fid)    % while循环表示文件指针没到达末尾，则继续
     data.host_fid = str2double(a{3})+1;
     data.seed_id = str2double(a{4});
     data.host_cid = str2double(a{5})+1;
-%     data.host_pix = [str2double(a{6}) str2double(a{7})]+[1 1] + patch_offset;
+    %     data.host_pix = [str2double(a{6}) str2double(a{7})]+[1 1] + patch_offset;
     data.rho = 1/str2double(a{8});
     data.rho_align1d = 1/str2double(a{9});
     data.do_search = str2double(a{10});
@@ -563,15 +590,19 @@ while ~feof(fid)    % while循环表示文件指针没到达末尾，则继续
     data.norm_best = (str2double(a{end-23}));
     data.mean_best = (str2double(a{end-24}));
     data.host_level = (str2double(a{end-25}));
+    data.do_epi_search = (str2double(a{end-26}));
+    data.rho_at_init = 1 / (str2double(a{end-27}));
+    data.has_initial_guess = (str2double(a{end-28}));
+    data.is_neg_idp = (str2double(a{end-29}));
     
     if ~uneven_patch
         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + [0 1 2 3 -4 -3 -2 -1]' * data.host_grad_dir;
     else
-%         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + [0 : 7]' * data.host_grad_dir;
-%         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + [0 1 2 3 4 5 -2 -1]' * data.host_grad_dir;
+        %         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + [0 : 7]' * data.host_grad_dir;
+        %         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + [0 1 2 3 4 5 -2 -1]' * data.host_grad_dir;
         
         rot_mat = [ data.host_grad_dir(1), -data.host_grad_dir(2); data.host_grad_dir(2), data.host_grad_dir(1)];
-        rot_mat = -rot_mat;
+%         rot_mat = -rot_mat;
         data.host_pix_grad = [str2double(a{6}) str2double(a{7})]+[1 1] + (rot_mat * patch_offset')';
     end
     epi_search_data = str2double(a(11:end-(offset+1))) + 1;
@@ -594,7 +625,7 @@ while ~feof(fid)    % while循环表示文件指针没到达末尾，则继续
             if ~patch_16
                 data.patch{k,1} = reshape(squeeze(patchs(:,k,:)),8,2,[]);
             else
-               data.patch{k,1} = reshape(squeeze(patchs(:,k,:)),patch_size,2,[]); 
+                data.patch{k,1} = reshape(squeeze(patchs(:,k,:)),patch_size,2,[]);
             end
         end
     end

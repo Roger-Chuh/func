@@ -8,9 +8,9 @@ imgs{1,1} = img0;
 imgs{2,1} = img1;
 imgs{3,1} = img2;
 
-% figure, subplot(1,3,1);imshow(img0);
-% subplot(1,3,2);imshow(img1);
-% subplot(1,3,3);imshow(img2);
+figure, subplot(1,3,1);imshow(img0);
+subplot(1,3,2);imshow(img1);
+subplot(1,3,3);imshow(img2);
 
 
 
@@ -125,6 +125,7 @@ for i = 1 : length(imgs)
             end
             sigma = dist_map(row, col);
             J_ZNSSD_J_I = sigma * (Mat_ZNSSD_I - (normalized_vals * normalized_vals')) / sigma * J_ZNSSD_mean;
+            
             coords = [col row] + patch_offset;
             valid = round(coords(:,1)) >= 1 & round(coords(:,2)) >= 1 & round(coords(:,1)) <= width & round(coords(:,2)) <= height;
             if sum(valid) < PATCH_SIZE
@@ -133,9 +134,16 @@ for i = 1 : length(imgs)
             ind = sub2ind([height width], round(coords(:,2)), round(coords(:,1)));
             grad = [gx(ind) gy(ind)];
             J_ZNSSD_J_uv = J_ZNSSD_J_I * grad;
+            
+            [~,dist] = NormalizeVector(J_ZNSSD_J_uv);
+            g20 = dist.^2;
+            g2 = 50.0 ./ (50.0 + g20);
+            gradWeightMat = diag(g2);
+            gradWeightMat = diag(ones(length(g2),1));
+            
             J_ZNSSD_J_dir = J_ZNSSD_J_uv * d_uv_d_pt3d;
-            H_uv = J_ZNSSD_J_uv' * J_ZNSSD_J_uv;
-            H_dir = J_ZNSSD_J_dir' * J_ZNSSD_J_dir;
+            H_uv = J_ZNSSD_J_uv' * gradWeightMat *  J_ZNSSD_J_uv;
+            H_dir = J_ZNSSD_J_dir' * gradWeightMat * J_ZNSSD_J_dir;
             
             
             n = host_bearing';
@@ -164,7 +172,9 @@ for i = 1 : length(imgs)
     mask = eig_map > 50; %< 0.1 & eig_map > 0.05;
     mask_pose = eig_map_pose > 5e6; % < 10000 & eig_map_pose > 1000;
     
-    figure,subplot(1,2,1);imshowpair(host_img, mask);title('H uv');subplot(1,2,2);imshowpair(host_img, mask_pose);title('H x0');
+%     figure,subplot(1,2,1);imshowpair(host_img, mask);title('H uv');subplot(1,2,2);imshowpair(host_img, mask_pose);title('H x0');
+    figure,subplot(2,2,1);imshowpair(host_img, eig_map);title('H uv');subplot(2,2,2);imshowpair(host_img, eig_map_pose);title('H x0');
+    subplot(2,2,3);imshow(eig_map, []);title('H uv');subplot(2,2,4);imshow(eig_map_pose, []);title('H x0');
     Eig_Map{i,1} = eig_map;
     Eig_Map_pose{i,1} = eig_map_pose;
 %     Eig_Map_pose{i,1} = eig_map_pose_max;
