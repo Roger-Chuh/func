@@ -4,7 +4,7 @@ function [ptTrackL, ptTrackR, imgSize, intrMatL, intrMatR, Marker2CamL, Marker2C
 
 % close all
 
-use_inverse_BC = true;
+use_inverse_BC = false; true;
 
 sigma_pixel = 0; 2; 0; 2; 0; 2; 1; 0; 2; 1; 0;
 
@@ -70,8 +70,8 @@ Marker2CamL = inv(Cam2Marker);
 Marker2CamR = L2R*Marker2CamL;
 
 markerSize = 150; 100; 200;
-markerRow = 15; 4; 7; 15;20; 7;
-markerCol = 15; 4; 7; 15;20; 7;
+markerRow = 4;15; 4; 7; 15;20; 7;
+markerCol = 4;15; 4; 7; 15;20; 7;
 
 [xMat0, yMat0] = meshgrid(markerSize : markerSize : (markerCol - 0) * markerSize, markerSize : markerSize : (markerRow - 0) * markerSize);
 xMat = xMat0 + coord_offset;

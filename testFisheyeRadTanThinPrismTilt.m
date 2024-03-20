@@ -157,6 +157,7 @@ X = X./norm(X);
 
 [pt3d, d_pt3d_d_uv, d_pt3d_d_param] = unproject(pt2d(1),pt2d(2), fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20);
 
+[pt2d123, ~, ~] = project(pt3d(1),pt3d(2), pt3d(3),fx0,fy0,cx0,cy0,k10,k20,k30,k40,k50,k60,p10,p20,s10,s20,s30,s40,s50,s60,t10,t20);
  
 err_ = X - pt3d
 

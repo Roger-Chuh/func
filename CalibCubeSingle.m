@@ -86,7 +86,9 @@ else
 %         err = [rad2deg(norm(rodrigues(diff{1}(1:3,1:3)))) norm(diff{1}(1:3,4)) rad2deg(norm(rodrigues(diff{2}(1:3,1:3)))) norm(diff{2}(1:3,4))];
     end
 end
-dif
+if 0
+    dif
+end
 %  [rotVecRight,transVecRight,drrdrl, drrdtl, drrdrref,drrdtref,dtrdrl, dtrdtl, dtrdrref,dtrdtref] = compose_motion(rotVecLeft,                    transVecLeft,     rotVecRef,   transVecRef );
 %测试用，算法里没用到
 [rotVec2,    transVec2,    dr2dr12,dr2dt12,dr2dr1,  dr2dt1,  dt2dr12,dt2dt12,dt2dr1,  dt2dt1]   = compose_motion(rodrigues(config.rt2(1:3,1:3)),config.rt2(1:3,4),rotVec(:,1), tranVec(:,1));

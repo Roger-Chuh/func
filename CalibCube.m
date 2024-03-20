@@ -4,7 +4,7 @@ function CalibCube()
 
 
 %用于标定的图像
-imgNum = 100; 10; 1; 100;
+imgNum = 5; 100; 10; 1; 100;
 
 errStack = [];
 stereoErrOld = [];

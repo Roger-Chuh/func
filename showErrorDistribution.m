@@ -51,17 +51,21 @@ if board_num == 5 % 20240205
     assert(length(dirInfo) == 20);
     camId = [1:5:20];
 else
-    assert(length(dirInfo) == 6);
-    camId = [1:board_num:6];
+    assert(length(dirInfo) == 12);%6);
+    camId = [1:board_num:12];%6];
 end
 % camId = [1:5:20];
 
 
 
 
-
-image_width = 1280;640;
-image_height = 1024;480;
+if 0
+    image_width = 1280;640;
+    image_height = 1024;480;
+else
+    image_width = 640;
+    image_height = 480;
+end
 
 is_rgb_stereo = 1;
 

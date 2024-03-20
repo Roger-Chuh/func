@@ -129,7 +129,7 @@ timestamps = unique(data(:,2));
 % timestamps = unique(data(:,1));
 
 
-figure(2+delta_fig);clf;plotPath(poseMat, 5);plotPath(poseMat(data(:,3) == 2,:),5);
+figure(2+delta_fig);clf;plotPath(poseMat, 5);plotPath(poseMat(data(:,3) == 2,:),10);
 
  figure(4+delta_fig),imshow(err_image);
 

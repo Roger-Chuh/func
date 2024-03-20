@@ -4,7 +4,7 @@ function checkIntr()
 aprilSize = 6;
 
 
-use_van_plane = 0;1; 0;1;0; 1;0;
+use_van_plane = 1;0;1; 0;1;0; 1;0;
 
 
 inputDir = 'D:\yvr\data\intr\outlier_img';
