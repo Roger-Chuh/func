@@ -1,8 +1,8 @@
 function testVanishingPoint()
 close all
 
-
-use_vec3_err = true;
+change_err_order = false;
+use_vec3_err = false;
 
 colorStack = {'k';'m';'c'};
 colorStack = repmat(colorStack,100,1);
@@ -20,7 +20,8 @@ marker1 = [xMat0(:) yMat0(:) zeros(markerRow*markerCol,1)];
 
 Cam2MarkerRot = rodrigues([-0.01 1.0 -0.02] + 0.05*(rand(1,3)-0.5));
 Cam2MarkerRot = rodrigues([-0.01 1.0 -0.02] + 0.00*(rand(1,3)-0.5));
-Cam2MarkerTrans = [-100 3500 -5000]';
+Cam2MarkerTrans = [-100 6500 -8000]';
+Cam2MarkerTrans = [0 0 -8000]';
 Cam2Marker = [Cam2MarkerRot Cam2MarkerTrans; 0 0 0 1];
 Marker2CamL = inv(Cam2Marker);
 Marker2CamR = L2R*Marker2CamL;
@@ -70,8 +71,8 @@ RotVec = [];
 uMat_stack = {};
 vMat_stack = {};
 Marker2CamL0 = Marker2CamL;
-for frame_id = 1 : 10
-    Marker2CamL = [rodrigues(0.1 * (rand(3,1)-0.5)) 100 * (rand(3,1)-0.5);0 0 0 1] * Marker2CamL0;
+for frame_id = 1 : 5
+    Marker2CamL = [rodrigues(0.5 * (rand(3,1)-0.5)) 100 * (rand(3,1)-0.5);0 0 0 1] * Marker2CamL0;
     [pt2dL00, pt3dL] = TransformAndProject(marker1, K, Marker2CamL(1:3,1:3), Marker2CamL(1:3,4));
     
     for i = 1 : size(marker1,1)
@@ -92,14 +93,14 @@ end
 
 
 
-computeError([param; RotVec], uMat_stack, vMat_stack, use_vec3_err);
+computeError([param; RotVec], uMat_stack, vMat_stack, use_vec3_err, change_err_order);
 
 
 
 
 
 end
-function computeError(param, uMat_stack, vMat_stack, use_vec3_err)
+function computeError(param, uMat_stack, vMat_stack, use_vec3_err, change_err_order)
 param0 = param;
 offset = 0;2;
 fix_f = false;
@@ -134,7 +135,7 @@ else
 end
 if add_noise && ~fix_rot
     for frame_id = 1 : frame_num
-        param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) = param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) + [-0.01 0.02 -0.03]';
+        param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) = param(21 + 3*(frame_id-1):23 + 3*(frame_id-1)) + (0.01 * (rand(3,1)-0.5)); [-0.01 0.02 -0.03]';
     end
 end
 % rotMat = rodrigues(param(end-2:end));
@@ -144,7 +145,7 @@ comb = nchoosek(1:size(uMat_stack{1,1},1), 2);
 
 
 loss = [];
-for iter = 1 : 50
+for iter = 1 : 30
     err = 0;
     
     intr = param(1:20);
@@ -188,6 +189,8 @@ for iter = 1 : 50
                     end
                     hori_plane_norm = cross(hori_bearing1, hori_bearing2);
                     hori_norm = norm(hori_plane_norm);
+                    hori_plane_norm_change_order = cross(X1, hori_bearing2);
+                    hori_norm_change_order = norm(hori_plane_norm_change_order);
                     %         hori_plane_norm = hori_plane_norm./hori_norm; 这里不能归一化
                     hori_plane_norm_check = cross(hori_bearing1, X1);
                     hori_plane_norm_check = hori_plane_norm_check./norm(hori_plane_norm_check);
@@ -196,7 +199,10 @@ for iter = 1 : 50
                     end
                     err_hori = dot(hori_plane_norm, X1) / hori_norm; %真正的残差要归一化% <----
                     res_hori = dot(hori_plane_norm, X1); %这是中间结果，不要归一化
+                    err_hori_change_order = dot(hori_plane_norm_change_order, hori_bearing1) / hori_norm_change_order; %真正的残差要归一化% <----
+                    res_hori_change_order = dot(hori_plane_norm_change_order, hori_bearing1); %这是中间结果，不要归一化
                     d_hori_plane_d_param = [-SkewSymMat(hori_bearing2) * d_pt3d_d_param_hori1 + SkewSymMat(hori_bearing1) * d_pt3d_d_param_hori2];
+                    
                     if ~use_vec3_err
                         if 0
                             d_hori_err_d_hori_plane1 = [X1(1)/hori_norm - res_hori * hori_plane_norm(1) / hori_norm^3;
@@ -204,11 +210,23 @@ for iter = 1 : 50
                                 X1(3)/hori_norm - res_hori * hori_plane_norm(3) / hori_norm^3]';
                         else
                             d_hori_err_d_hori_plane = compute_d_dist_d_plane(res_hori, X1, hori_plane_norm);
+                            d_hori_err_d_hori_plane_change_order = compute_d_dist_d_plane(res_hori_change_order, hori_bearing1, hori_plane_norm_change_order);
                         end
                         d_hori_err_d_param = d_hori_err_d_hori_plane * d_hori_plane_d_param;% <----
                         d_hori_err_d_X1 = hori_plane_norm./hori_norm;
                         d_X1_d_R = -SkewSymMat(X1);
                         d_hori_err_d_R = d_hori_err_d_X1 * d_X1_d_R; % <---
+                     %%
+                        d_hori_err_d_bearing2 = d_hori_err_d_hori_plane_change_order * SkewSymMat(X1) * d_pt3d_d_param_hori2;
+                        d_hori_err_d_bearing1 = hori_plane_norm_change_order./hori_norm_change_order * d_pt3d_d_param_hori1;
+                        d_hori_err_d_param_change_order = d_hori_err_d_bearing1 + d_hori_err_d_bearing2;
+                        d_X1_d_R_change_order = -SkewSymMat(X1);
+                        d_hori_err_d_R_change_order = d_hori_err_d_hori_plane_change_order * (-SkewSymMat(hori_bearing2)) * (d_X1_d_R_change_order);
+                        if change_err_order
+                            err_hori = err_hori_change_order;
+                            d_hori_err_d_param = d_hori_err_d_param_change_order;
+                            d_hori_err_d_R = d_hori_err_d_R_change_order;
+                        end
                     else
                         normalized_plane_hori = hori_plane_norm'./hori_norm;
                         pt_in_plane_hori = X1' - (X1 * normalized_plane_hori) .* normalized_plane_hori;
@@ -226,6 +244,29 @@ for iter = 1 : 50
                         d_X1_d_R = -SkewSymMat(X1);
                         d_hori_err_d_R = d_hori_err_d_X1 * d_X1_d_R; % <---
                         %                 d_hori_err_d_R = zeros(size(d_hori_err_d_R));
+                     %%
+                        normalized_plane_hori_change_order = hori_plane_norm_change_order'./hori_norm_change_order;
+                        pt_in_plane_hori_change_order = hori_bearing1' - (hori_bearing1 * normalized_plane_hori_change_order) .* normalized_plane_hori_change_order;
+                        pt_in_plane_norm_hori_change_order = pt_in_plane_hori_change_order./norm(pt_in_plane_hori_change_order);
+                        err_hori_change_order = pt_in_plane_norm_hori_change_order - hori_bearing1';
+                        d_err_d_pt_hori_change_order = compute_d_bearing_d_pt_jac(pt_in_plane_hori_change_order);
+                        d_pt_d_plane_norm_hori_change_order = compute_d_pt_d_plane_norm_jac(hori_bearing1', normalized_plane_hori_change_order); 
+                        d_plane_norm_d_plane_hori_change_order = compute_d_bearing_d_pt_jac(hori_plane_norm_change_order');
+                        
+                        d_X1_d_R_chnage_order = -SkewSymMat(X1);
+                        d_pt_in_plane_d_hori_bearing1 = [1-normalized_plane_hori_change_order(1)^2 -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(2) -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(3);
+                            -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(2) 1-normalized_plane_hori_change_order(2)^2 -normalized_plane_hori_change_order(2)*normalized_plane_hori_change_order(3);
+                            -normalized_plane_hori_change_order(1)*normalized_plane_hori_change_order(3) -normalized_plane_hori_change_order(2)*normalized_plane_hori_change_order(3) 1-normalized_plane_hori_change_order(3)^2];
+                        d_hori_err_d_bearing1 = (-eye(3) + d_err_d_pt_hori_change_order * d_pt_in_plane_d_hori_bearing1) * d_pt3d_d_param_hori1;
+                        d_hori_err_d_X1_change_order = d_err_d_pt_hori_change_order * d_pt_d_plane_norm_hori_change_order * d_plane_norm_d_plane_hori_change_order * (-SkewSymMat(hori_bearing2));
+                        d_hori_err_d_R_change_order = d_hori_err_d_X1_change_order * d_X1_d_R_chnage_order;
+                        d_hori_err_d_bearing2 = d_err_d_pt_hori_change_order * d_pt_d_plane_norm_hori_change_order * d_plane_norm_d_plane_hori_change_order * (SkewSymMat(X1) * d_pt3d_d_param_hori2);
+                        d_hori_err_d_param_change_order = d_hori_err_d_bearing1 + d_hori_err_d_bearing2;
+                        if change_err_order
+                            err_hori = err_hori_change_order;
+                            d_hori_err_d_param = d_hori_err_d_param_change_order;
+                            d_hori_err_d_R = d_hori_err_d_R_change_order;
+                        end
                     end
                     if fix_rot
                         d_hori_err_d_R = zeros(size(d_hori_err_d_R));
@@ -262,6 +303,8 @@ for iter = 1 : 50
                     end
                     vert_plane_norm = cross(vert_bearing1, vert_bearing2);
                     vert_norm = norm(vert_plane_norm);
+                    vert_plane_norm_change_order = cross(X2, vert_bearing2);
+                    vert_norm_change_order = norm(vert_plane_norm_change_order);
                     %         vert_plane_norm = vert_plane_norm./vert_norm; 这里不能归一化
                     vert_plane_norm_check = cross(vert_bearing1, X2);
                     vert_plane_norm_check = vert_plane_norm_check./norm(vert_plane_norm_check);
@@ -270,6 +313,8 @@ for iter = 1 : 50
                     end
                     err_vert = dot(vert_plane_norm, X2) / vert_norm;%真正的残差要归一化 % <----
                     res_vert = dot(vert_plane_norm, X2); %这是中间结果，不要归一化
+                    err_vert_change_order = dot(vert_plane_norm_change_order, vert_bearing1) / vert_norm_change_order; %真正的残差要归一化% <----
+                    res_vert_change_order = dot(vert_plane_norm_change_order, vert_bearing1); %这是中间结果，不要归一化
                     d_vert_plane_d_param = [-SkewSymMat(vert_bearing2) * d_pt3d_d_param_vert1 + SkewSymMat(vert_bearing1) * d_pt3d_d_param_vert2];
                     
                     if ~use_vec3_err
@@ -279,11 +324,23 @@ for iter = 1 : 50
                                 X2(3)/vert_norm - res_vert * vert_plane_norm(3) / vert_norm^3]';
                         else
                             d_vert_err_d_vert_plane = compute_d_dist_d_plane(res_vert, X2, vert_plane_norm);
+                            d_vert_err_d_vert_plane_change_order = compute_d_dist_d_plane(res_vert_change_order, vert_bearing1, vert_plane_norm_change_order);
                         end
                         d_vert_err_d_param = d_vert_err_d_vert_plane * d_vert_plane_d_param;% <----
                         d_vert_err_d_X2 = vert_plane_norm./vert_norm;
                         d_X2_d_R = -SkewSymMat(X2);
                         d_vert_err_d_R = d_vert_err_d_X2 * d_X2_d_R;% <----
+                        %%
+                        d_vert_err_d_bearing2 = d_vert_err_d_vert_plane_change_order * SkewSymMat(X2) * d_pt3d_d_param_vert2;
+                        d_vert_err_d_bearing1 = vert_plane_norm_change_order./vert_norm_change_order * d_pt3d_d_param_vert1;
+                        d_vert_err_d_param_change_order = d_vert_err_d_bearing1 + d_vert_err_d_bearing2;
+                        d_X2_d_R_change_order = -SkewSymMat(X2);
+                        d_vert_err_d_R_change_order = d_vert_err_d_vert_plane_change_order * (-SkewSymMat(vert_bearing2)) * (d_X2_d_R_change_order);
+                        if change_err_order
+                            err_vert = err_vert_change_order;
+                            d_vert_err_d_param = d_vert_err_d_param_change_order;
+                            d_vert_err_d_R = d_vert_err_d_R_change_order;
+                        end
                     else
                         normalized_plane_vert = vert_plane_norm'./vert_norm;
                         pt_in_plane_vert = X2' - (X2 * normalized_plane_vert) .*(normalized_plane_vert);
@@ -306,6 +363,29 @@ for iter = 1 : 50
                         d_X2_d_R = -SkewSymMat(X2);
                         d_vert_err_d_R = d_vert_err_d_X2 * d_X2_d_R; % <---
                         %                 d_vert_err_d_R = zeros(size(d_vert_err_d_R));
+                        %%
+                        normalized_plane_vert_change_order = vert_plane_norm_change_order'./vert_norm_change_order;
+                        pt_in_plane_vert_change_order = vert_bearing1' - (vert_bearing1 * normalized_plane_vert_change_order) .* normalized_plane_vert_change_order;
+                        pt_in_plane_norm_vert_change_order = pt_in_plane_vert_change_order./norm(pt_in_plane_vert_change_order);
+                        err_vert_change_order = pt_in_plane_norm_vert_change_order - vert_bearing1';
+                        d_err_d_pt_vert_change_order = compute_d_bearing_d_pt_jac(pt_in_plane_vert_change_order);
+                        d_pt_d_plane_norm_vert_change_order = compute_d_pt_d_plane_norm_jac(vert_bearing1', normalized_plane_vert_change_order); 
+                        d_plane_norm_d_plane_vert_change_order = compute_d_bearing_d_pt_jac(vert_plane_norm_change_order');
+                        
+                        d_X2_d_R_chnage_order = -SkewSymMat(X2);
+                        d_pt_in_plane_d_vert_bearing1 = [1-normalized_plane_vert_change_order(1)^2 -normalized_plane_vert_change_order(1)*normalized_plane_vert_change_order(2) -normalized_plane_vert_change_order(1)*normalized_plane_vert_change_order(3);
+                            -normalized_plane_vert_change_order(1)*normalized_plane_vert_change_order(2) 1-normalized_plane_vert_change_order(2)^2 -normalized_plane_vert_change_order(2)*normalized_plane_vert_change_order(3);
+                            -normalized_plane_vert_change_order(1)*normalized_plane_vert_change_order(3) -normalized_plane_vert_change_order(2)*normalized_plane_vert_change_order(3) 1-normalized_plane_vert_change_order(3)^2];
+                        d_vert_err_d_bearing1 = (-eye(3) + d_err_d_pt_vert_change_order * d_pt_in_plane_d_vert_bearing1) * d_pt3d_d_param_vert1;
+                        d_vert_err_d_X2_change_order = d_err_d_pt_vert_change_order * d_pt_d_plane_norm_vert_change_order * d_plane_norm_d_plane_vert_change_order * (-SkewSymMat(vert_bearing2));
+                        d_vert_err_d_R_change_order = d_vert_err_d_X2_change_order * d_X2_d_R_chnage_order;
+                        d_vert_err_d_bearing2 = d_err_d_pt_vert_change_order * d_pt_d_plane_norm_vert_change_order * d_plane_norm_d_plane_vert_change_order * (SkewSymMat(X2) * d_pt3d_d_param_vert2);
+                        d_vert_err_d_param_change_order = d_vert_err_d_bearing1 + d_vert_err_d_bearing2;
+                        if change_err_order
+                            err_vert = err_vert_change_order;
+                            d_vert_err_d_param = d_vert_err_d_param_change_order;
+                            d_vert_err_d_R = d_vert_err_d_R_change_order;
+                        end
                     end
                     if fix_rot
                         d_vert_err_d_R = zeros(size(d_vert_err_d_R));
