@@ -132,13 +132,7 @@ if (phi_norm2 > EPSILON)
     J = J - phi_hat * (1 - cos(phi_norm)) / phi_norm2;
     J = J + phi_hat2 * (phi_norm - sin(phi_norm)) / phi_norm3;
 else
-    % sin and cos Taylor expansion around 0
-    J = J - phi_hat / 2;
-    J = J + phi_hat2 / 6;
-end
-end
-
-function J = JrInv(phi)
+    % sin and cos Taylfunction J = JrInv(phi)
 EPSILON = 1e-6;
 EPSILONSQRT = sqrt(EPSILON);
 
@@ -168,7 +162,13 @@ else
     
 end
 
+endor expansion around 0
+    J = J - phi_hat / 2;
+    J = J + phi_hat2 / 6;
 end
+end
+
+
 function drdp = LogSE3(T)
 drdp = zeros(6,1);
 R = T(1:3,1:3);

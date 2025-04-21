@@ -30,7 +30,7 @@ if 0
     % end
     axis equal;
 else
-    if size(data,2) == 12
+    if 1 %size(data,2) == 12
         
         pcshow([data(1,10), data(1,11), data(1,12)], [0 0 1], 'VerticalAxis', 'Y', 'VerticalAxisDir', 'Down');
         xlabel('X (mm)');
