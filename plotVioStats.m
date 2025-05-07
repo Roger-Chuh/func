@@ -1,7 +1,7 @@
 function a = plotVioStats()
 
 close all;
-a = load('G:\matlab\data\direct\gt\D2_011\4\tbc\align_frame_info.txt');figure, plot(a(a(:,2) == 0 & a(:,3) == 3,4));b = load('G:\matlab\data\direct\gt\D2_011\4\tbc\lba_info.txt');figure,subplot(2,1,1); plot(b(b(:,1) == 1 & b(:,2) == 4,3));subplot(2,1,2); plot(b(b(:,1) == 1 & b(:,2) == 2,4:8));legend('imu','prior','blob','trifocal blob','reproj')
+a = load('G:\matlab\data\direct\gt\D2_011\4\tbc\align_frame_info.txt');figure, plot(a(a(:,2) == 0 & a(:,3) == 3,4));b = load('G:\matlab\data\direct\gt\D2_011\4\tbc\lba_info.txt');figure,subplot(2,1,1); plot(b(b(:,1) == 1 & b(:,2) == 2,3));subplot(2,1,2); plot(b(b(:,1) == 1 & b(:,2) == 2,4:8));legend('imu','prior','blob','trifocal blob','reproj')
 try
     ba = load('G:\matlab\data\direct\gt\D2_011\4\tbc\ba.txt');
     if (size(ba,2) <= 8)
@@ -20,8 +20,8 @@ catch
     fprintf('sth wrong\n');
     ba = load('G:\matlab\data\direct\gt\D2_011\4\tbc\ba.txt');
     bg = load('G:\matlab\data\direct\gt\D2_011\4\tbc\bg.txt');
-    figure,plot(ba(:,2:4));
-    figure,plot(bg(:,2:4));
+    figure,plot(ba(:,1), ba(:,2:4));
+    figure,plot(bg(:,1), bg(:,2:4));
 end
 a = load('G:\matlab\data\direct\gt\D2_011\4\tbc\scale.txt');figure,plot([a(:,2:3)]);figure,subplot(2,2,1);hold on;plot(a(:,[7 9]));plot(a(:,[8 10]));title('cam0');subplot(2,2,2);hold on;plot(a(:,[12 14]));plot(a(:,[13 15]));title('cam1');subplot(2,2,3);hold on;plot(a(:,[17 19]));plot(a(:,[18 20]));title('cam2');subplot(2,2,4);hold on;plot(a(:,[22 24]));plot(a(:,[23 25]));title('cam3');figure,plot(a(:,[5 26]))
 [poseMat0, time0] = plotTraj('G:\matlab\data\direct\gt\D2_011\4\tbc\raw_output.txt');close;

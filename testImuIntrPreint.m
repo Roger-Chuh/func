@@ -328,6 +328,39 @@ A(13:15,16:18) = eye(3);
 A(16:18,16:18) = SkewSymMat(-R' * w);
 F = expm(A * dt);
 
+
+%% dual imu
+A = zeros(33, 33);
+w1 = rand(3, 1);
+w2 = rand(3, 1);
+a1 = rand(3, 1);
+a2 = rand(3, 1);
+aw1 = rand(3, 1);
+aw2 = rand(3, 1);
+p12 = rand(3, 1);
+v12 = rand(3, 1);
+R12 = rodrigues(rand(3, 1));
+
+A(1:3, 4:6) = eye(3);
+A(4:6, 1:3) = -SkewSymMat(w1) * SkewSymMat(w1) - SkewSymMat(aw1);
+A(4:6, 4:6) = -2 * SkewSymMat(w1);
+A(4:6, 7:9) = -R12 * SkewSymMat(a2);
+A(4:6, 10:12) = -eye(3);
+A(4:6, 13:15) = SkewSymMat(w1) * SkewSymMat(p12) + SkewSymMat(SkewSymMat(w1) * p12) + 2 * SkewSymMat(v12);
+A(4:6, 16:18) = R12;
+A(4:6, 25:27) = SkewSymMat(p12);
+A(7:9, 7:9) = -SkewSymMat(w2);
+A(7:9, 13:15) = -R12';
+A(7:9, 19:21) = eye(3);
+A(10:12, 22:24) = eye(3);
+A(13:15, 25:27) = eye(3);
+A(16:18, 28:30) = eye(3);
+A(19:21, 31:33) = eye(3);
+dt = 0.01;
+F = expm(A * dt);
+
+F_d = eye(33, 33) + A * dt + (A * dt)^2 / 2 + (A * dt)^3 / 6 + (A * dt)^4 / 24;
+
 %% single cam relative imu
 A = zeros(15,15);
 A2 = zeros(15,15);
