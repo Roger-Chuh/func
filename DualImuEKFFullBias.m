@@ -1,15 +1,21 @@
-function DualImuEKFFull()
+function DualImuEKFFullBias()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
-    disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov
+    disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
+    bg_head ba_head bg_carrier ba_carrier iter_max
 % close all
 use_exact_vel = true;
 real_run = true;
-add_noise_obs = false;
+add_noise_obs = true;
 add_noise_state = true;
 disable_jerk = false;
-err_dim = 9;27;9; 21;
-
+err_dim = 27;9; 21;
+iter_max = 3;
 reset_cov = true;
+
+bg_head = zeros(3,1);
+ba_head = zeros(3,1);
+bg_carrier = zeros(3,1);
+ba_carrier = zeros(3,1);
 
 head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
 carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
@@ -107,25 +113,25 @@ else
         Q(16:18, 16:18) = 0.000000001 * eye(3, 3);
         
         Q(19:24, 19:24) = 0.00001 * eye(6, 6);
-%         Q(19:24, 19:24) = 0.1 * eye(6, 6);
-    if err_dim == 27
-        R_ = 0.00001 * eye(27, 27);
-        R_(1:9, 1:9) = 0.00000001 * eye(9,9);
-        R_(10:12, 10:12) = 0.0000001 * eye(3, 3);
-        R_(16:18, 16:18) = 0.0000001 * eye(3, 3);
-        
-        R_(22:27, 22:27) = 0.00000001 * eye(6,6);
-    elseif err_dim == 21
-        R_ = 0.01 * eye(21, 21);
-        R_(1:9, 1:9) = 0.00001 * eye(9,9);
-        R_(10:12, 10:12) = 0.000000001 * eye(3, 3);
-        R_(13:15, 13:15) = 0.000001 * eye(3, 3);
-        R_(16:18, 16:18) = 0.000000001 * eye(3, 3);
-        R_(19:21, 19:21) = 0.000001 * eye(3, 3);
-    elseif err_dim == 9
-        R_ = 0.001 * eye(9,9);
-    else
-    end
+        %         Q(19:24, 19:24) = 0.1 * eye(6, 6);
+        if err_dim == 27
+            R_ = 0.001 * eye(27, 27);
+            R_(1:9, 1:9) = 0.001 * eye(9,9);
+            R_(10:12, 10:12) = 0.001 * eye(3, 3);
+            R_(16:18, 16:18) = 0.001 * eye(3, 3);
+            
+            R_(22:27, 22:27) = 0.001 * eye(6,6);
+        elseif err_dim == 21
+            R_ = 0.01 * eye(21, 21);
+            R_(1:9, 1:9) = 0.00001 * eye(9,9);
+            R_(10:12, 10:12) = 0.000000001 * eye(3, 3);
+            R_(13:15, 13:15) = 0.000001 * eye(3, 3);
+            R_(16:18, 16:18) = 0.000000001 * eye(3, 3);
+            R_(19:21, 19:21) = 0.000001 * eye(3, 3);
+        elseif err_dim == 9
+            R_ = 0.001 * eye(9,9);
+        else
+        end
         %         R_(1:9, 1:9) = 0.00001 * eye(9);
         %         R_ = zeros(21, 21);
     else
@@ -175,7 +181,7 @@ figure,plot(Err)
 end
 function err = ProcessOnce(cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
-    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov
+    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max
 cur_state_gt = cur_state;
 cur_w_head_gt = cur_w_head;
 cur_a_head_gt = cur_a_head;
@@ -209,19 +215,19 @@ else
         R2_est = rodrigues(-(w_carrier * imu_dt + 0.5 * aw_carrier_rand * imu_dt^2)) * R * rodrigues(w_head * imu_dt + 0.5 * aw_head_rand * imu_dt^2);
     else
         if ~disable_jerk
-            w_carrier_new = w_carrier + aw_carrier * imu_dt;
-            w_carrier_cur_new = w_carrier + 2 * aw_carrier * imu_dt;
+            w_carrier_new = (cur_w_carrier + bg_carrier) + aw_carrier * imu_dt;
+            w_carrier_cur_new = (cur_w_carrier + bg_carrier) + 2 * aw_carrier * imu_dt;
             
-            w_carrier_dt = w_carrier * imu_dt + 0.5 * aw_carrier * imu_dt^2;
-            w_head_dt = w_head * imu_dt + 0.5 * aw_head * imu_dt^2;
-            p2_est = rodrigues(-w_carrier_dt) * ((eye(3) + SkewSymMat(w_carrier_dt)) * p + imu_dt * v + 0.5 * imu_dt^2 * (R * a_head - a_carrier));
-            v2_est = rodrigues(-w_carrier_dt) * (v + SkewSymMat(w_carrier_new) * p + (R * a_head - a_carrier) * imu_dt) - SkewSymMat(w_carrier_cur_new) * p2_est;
+            w_carrier_dt = (cur_w_carrier + bg_carrier) * imu_dt + 0.5 * aw_carrier * imu_dt^2;
+            w_head_dt = ((cur_w_head + bg_head)) * imu_dt + 0.5 * aw_head * imu_dt^2;
+            p2_est = rodrigues(-w_carrier_dt) * ((eye(3) + SkewSymMat(w_carrier_dt)) * p + imu_dt * v + 0.5 * imu_dt^2 * (R * (cur_a_head + ba_head) - (cur_a_carrier + ba_carrier)));
+            v2_est = rodrigues(-w_carrier_dt) * (v + SkewSymMat(w_carrier_new) * p + (R * (cur_a_head + ba_head) - (cur_a_carrier + ba_carrier)) * imu_dt) - SkewSymMat(w_carrier_cur_new) * p2_est;
             R2_est = rodrigues(-w_carrier_dt) * R * rodrigues(w_head_dt);
             
-            w_carrier_est = w_carrier + aw_carrier * imu_dt;
-            w_head_est = w_head + aw_head * imu_dt;
-            a_carrier_est = a_carrier;
-            a_head_est = a_head;
+            bg_carrier_est = bg_carrier + aw_carrier * imu_dt;
+            bg_head_est = bg_head + aw_head * imu_dt;
+            ba_carrier_est = ba_carrier;
+            ba_head_est = ba_head;
             aw_carreir_est = aw_carrier;
             aw_head_est = aw_head;
             
@@ -268,13 +274,13 @@ if real_run
         cov_RVP = cov_A * A_head(1:9,1:9) * cov_A' + cov_B * A_carrier(1:9,1:9) * cov_B;
     else
         
-        [F, G] = computeDualCov(w_carrier, w_head, a_carrier, a_head, p, v, R, aw_carrier);
-        if 1
-            [state_pred_wo_err, err_pvq0] = progagateState(zeros(27,1), p, v, R, a_head, w_head, a_carrier, w_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
+        [F, G] = computeDualCov(cur_w_carrier + bg_carrier + aw_carrier * imu_dt, cur_w_head + bg_head + aw_head * imu_dt, cur_a_carrier + ba_carrier, cur_a_head + ba_head, p, v, R, aw_carrier);
+        if 0
+            [state_pred_wo_err, err_pvq0] = progagateState(zeros(27,1), p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
             err_vec0 = 0.001 * ones(27, 1);
             err_vec1 = F * err_vec0;
-            [state_pred_w_err, err_pvq1] = progagateState(err_vec0, p, v, R, a_head, w_head, a_carrier, w_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
+            [state_pred_w_err, err_pvq1] = progagateState(err_vec0, p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
             
             
@@ -286,10 +292,10 @@ if real_run
         R = R2_est;
         p = p2_est;
         v = v2_est;
-        w_carrier = w_carrier_est;
-        w_head = w_head_est;
-        a_carrier = a_carrier_est;
-        a_head = a_head_est;
+        bg_carrier = bg_carrier_est;
+        bg_head = bg_head_est;
+        ba_carrier = ba_carrier_est;
+        ba_head = ba_head_est;
         aw_carrier = aw_carreir_est;
         aw_head = aw_head_est;
         
@@ -307,7 +313,7 @@ if real_run
         % compute jac
         err_stack = [];
         if ~disable_jerk
-            for iter = 1 : 5
+            for iter = 1 : iter_max
                 [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
                 err_stack = [err_stack; norm(err)];
                 % update state and cov
@@ -321,10 +327,10 @@ if real_run
                 else
                     R = rodrigues(rodrigues(R) + dx(7:9) );
                 end
-                a_carrier = a_carrier + dx(10:12);
-                w_carrier = w_carrier + dx(13:15);
-                a_head = a_head + dx(16:18);
-                w_head = w_head + dx(19:21);
+                ba_carrier = ba_carrier + dx(10:12);
+                bg_carrier = bg_carrier + dx(13:15);
+                ba_head = ba_head + dx(16:18);
+                bg_head = bg_head + dx(19:21);
                 aw_carrier = aw_carrier + dx(22:24);
                 aw_head = aw_head + dx(25:27);
                 if reset_cov
@@ -376,7 +382,7 @@ else
     err = 1;
 end
 end
-function [state1, err_pvq] = progagateState(err_vec0, p0, v0, R0, a_head00, w_head00, a_carrier00, w_carrier00, aw_carrier00, aw_head00, p1, v1, R1,...
+function [state1, err_pvq] = progagateState(err_vec0, p0, v0, R0, ba_head00, bg_head00, ba_carrier00, bg_carrier00, aw_carrier00, aw_head00, p1, v1, R1,...
     w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
 global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next
 
@@ -387,36 +393,36 @@ if 1
 else
     R0 = rodrigues(rodrigues(R0) + err_vec0(7:9));
 end
-a_carrier0 = a_carrier00 + err_vec0(10:12);
-w_carrier0 = w_carrier00 + err_vec0(13:15) + imu_dt * err_vec0(22:24);
-a_head0 = a_head00 + err_vec0(16:18);
-w_head0 = w_head00 + err_vec0(19:21) + imu_dt * err_vec0(25:27);
+ba_carrier0 = ba_carrier00 + err_vec0(10:12);
+bg_carrier0 = bg_carrier00 + err_vec0(13:15) + imu_dt * err_vec0(22:24);
+ba_head0 = ba_head00 + err_vec0(16:18);
+bg_head0 = bg_head00 + err_vec0(19:21) + imu_dt * err_vec0(25:27);
 aw_carrier0 = aw_carrier00 + err_vec0(22:24);
 aw_head0 = aw_head00 + err_vec0(25:27);
 
-w_carrier_new = w_carrier0 + aw_carrier0 * imu_dt;
-w_carrier_cur_new = w_carrier0 + 2 * aw_carrier0 * imu_dt;
+w_carrier_new = (w_carrier_meas + bg_carrier0) + aw_carrier0 * imu_dt;
+w_carrier_cur_new = (w_carrier_meas + bg_carrier0) + 2 * aw_carrier0 * imu_dt;
 
-w_carrier_dt = w_carrier0 * imu_dt + 0.5 * aw_carrier0 * imu_dt^2;
-w_head_dt = w_head0 * imu_dt + 0.5 * aw_head0 * imu_dt^2;
-p2_est = rodrigues(-w_carrier_dt) * ((eye(3) + SkewSymMat(w_carrier_dt)) * p0 + imu_dt * v0 + 0.5 * imu_dt^2 * (R0 * a_head0 - a_carrier0));
-v2_est = rodrigues(-w_carrier_dt) * (v0 + SkewSymMat(w_carrier_new) * p0 + (R0 * a_head0 - a_carrier0) * imu_dt) - SkewSymMat(w_carrier_cur_new) * p2_est;
+w_carrier_dt = (w_carrier_meas + bg_carrier0) * imu_dt + 0.5 * aw_carrier0 * imu_dt^2;
+w_head_dt = (w_head_meas + bg_head0) * imu_dt + 0.5 * aw_head0 * imu_dt^2;
+p2_est = rodrigues(-w_carrier_dt) * ((eye(3) + SkewSymMat(w_carrier_dt)) * p0 + imu_dt * v0 + 0.5 * imu_dt^2 * (R0 * (a_head_meas + ba_head0) - (a_carrier_meas + ba_carrier0)));
+v2_est = rodrigues(-w_carrier_dt) * (v0 + SkewSymMat(w_carrier_new) * p0 + (R0 * (a_head_meas + ba_head0) - (a_carrier_meas + ba_carrier0)) * imu_dt) - SkewSymMat(w_carrier_cur_new) * p2_est;
 R2_est = rodrigues(-w_carrier_dt) * R0 * rodrigues(w_head_dt);
 err_p = p2_est - p1;
 err_v = v2_est - v1;
 err_R = rodrigues(R1' * R2_est);
-err_a_carrier = a_carrier0 - a_carrier00;
-err_w_carrier = w_carrier0 - w_carrier00;
-err_a_head = a_head0 - a_head00;
-err_w_head = w_head0 - w_head00;
+err_ba_carrier = ba_carrier0 - ba_carrier00;
+err_bg_carrier = bg_carrier0 - bg_carrier00;
+err_ba_head = ba_head0 - ba_head00;
+err_bg_head = bg_head0 - bg_head00;
 err_aw_carrier = aw_carrier0  - aw_carrier00;
 err_aw_head = aw_head0 - aw_head00;
 
 state1 = [p2_est; v2_est; rodrigues(R2_est);];
-err_pvq = [err_p; err_v; err_R; err_a_carrier; err_w_carrier; err_a_head; err_w_head; err_aw_carrier; err_aw_head];
+err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head];
 end
 function [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
-global R v p w_head a_head w_carrier a_carrier imu_dt aw_carrier aw_head err_dim
+global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier
 % err_dim = 9;
 H = zeros(err_dim, 27);
 err = zeros(err_dim,1);
@@ -441,29 +447,29 @@ if 0
 elseif 0
     %链式求导成对error state的雅可比
     H(7:9, 7:9) = JlInv(err(7:9)) * JrInv(rodrigues(R));
-elseif 1 
+elseif 1
     %链式求导成对error state的雅可比
-    H(7:9, 7:9) = JrInv(err(7:9)) *rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+    H(7:9, 7:9) = JlInv(err(7:9)) *rodrigues(-err(7:9)) * JrInv(rodrigues(R));
 else
     H(7:9, 7:9) = eye(3);
 end
 if (err_dim > 9)
-    %% d_erra1_d_a1
-    err(10:12) = cur_a_carrier - a_carrier;
+    %% d_err_ba1_d_ba1
+    err(10:12) = cur_a_carrier - (cur_a_carrier + ba_carrier);
     H(10:12, 10:12) = eye(3);
     
-    %% d_errw1_d_w1
-    err(13:15) = cur_w_carrier - (w_carrier + aw_carrier * imu_dt);
+    %% d_err_bg1_d_bg1
+    err(13:15) = cur_w_carrier - (cur_w_carrier + bg_carrier + aw_carrier * imu_dt);
     H(13:15, 13:15) = eye(3);
     % d_errw1_d_aw1
     H(13:15, 22:24) = eye(3) * imu_dt;
     
     %% d_erra2_d_a2
-    err(16:18) = cur_a_head - a_head;
+    err(16:18) = cur_a_head - (cur_a_head + ba_head);
     H(16:18, 16:18) = eye(3);
     
     %% d_errw2_d_w2
-    err(19:21) = cur_w_head - (w_head + aw_head * imu_dt);
+    err(19:21) = cur_w_head - (cur_w_head + bg_head + aw_head * imu_dt);
     H(19:21, 19:21) = eye(3);
     % d_errw2_d_aw2
     H(19:21, 25:27) = eye(3) * imu_dt;
@@ -546,16 +552,22 @@ if 0
 else
     A = zeros(33, 33);
     A(1:3, 4:6) = eye(3);
+    
     A(4:6, 1:3) = -SkewSymMat(w1) * SkewSymMat(w1) - SkewSymMat(aw1);
     A(4:6, 4:6) = -2 * SkewSymMat(w1);
     A(4:6, 7:9) = -R12 * SkewSymMat(a2);
-    A(4:6, 10:12) = -eye(3);
-    A(4:6, 13:15) = SkewSymMat(w1) * SkewSymMat(p12) + SkewSymMat(SkewSymMat(w1) * p12) + 2 * SkewSymMat(v12);
-    A(4:6, 16:18) = R12;
+    if 1
+        A(4:6, 10:12) = -eye(3);
+        A(4:6, 13:15) = (SkewSymMat(w1) * SkewSymMat(p12) + SkewSymMat(SkewSymMat(w1) * p12) + 2 * SkewSymMat(v12));
+        A(4:6, 16:18) = R12;
+    end
     A(4:6, 25:27) = SkewSymMat(p12);
+    
     A(7:9, 7:9) = -SkewSymMat(w2);
-    A(7:9, 13:15) = -R12';
-    A(7:9, 19:21) = eye(3);
+    if 1
+        A(7:9, 13:15) = -R12';
+        A(7:9, 19:21) = eye(3);
+    end
     A(10:12, 22:24) = eye(3);
     A(13:15, 25:27) = eye(3);
     A(16:18, 28:30) = eye(3);
