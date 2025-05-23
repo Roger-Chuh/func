@@ -443,7 +443,8 @@ elseif 0
     H(7:9, 7:9) = JlInv(err(7:9)) * JrInv(rodrigues(R));
 elseif 1 
     %链式求导成对error state的雅可比
-    H(7:9, 7:9) = JrInv(err(7:9)) *rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+    H(7:9, 7:9) = JrInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+%     H(7:9, 7:9) = JlInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
 else
     H(7:9, 7:9) = eye(3);
 end

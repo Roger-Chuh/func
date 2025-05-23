@@ -1,16 +1,25 @@
 function DualImuEKFFullBias()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
-    bg_head ba_head bg_carrier ba_carrier iter_max
+    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F
 % close all
 use_exact_vel = true;
 real_run = true;
 add_noise_obs = true;
 add_noise_state = true;
 disable_jerk = false;
-err_dim = 27;9; 21;
-iter_max = 3;
+err_dim = 21;9; 21;27;
+iter_max = 2;
 reset_cov = true;
+check_F = false;
+
+fix_aw = true;
+
+if check_F
+    add_noise_obs = false;
+    add_noise_state = false;
+end
+
 
 bg_head = zeros(3,1);
 ba_head = zeros(3,1);
@@ -21,14 +30,19 @@ head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
 carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
 
 
-imu_accum = (ones(size(head_imu,1),1));
-aw_carrier_rand = 1 * [0.1 -0.1 0.2]';
-aw_head_rand = 1 * [-0.2 -0.2 -0.1]';
-aw_carrier_fixed = repmat(aw_carrier_rand', size(head_imu,1),1);
-aw_head_fixed = repmat(aw_head_rand', size(head_imu,1),1);
-carrier_imu(:,2:4) = repmat(imu_accum, 1, 3).*aw_carrier_fixed;
-head_imu(:,2:4) = repmat(imu_accum, 1, 3).*aw_head_fixed;
-
+if fix_aw
+    imu_accum = (ones(size(head_imu,1),1));
+    aw_carrier_rand = 1 * [0.1 -0.1 0.2]';
+    aw_head_rand = 1 * [-0.2 -0.2 -0.1]';
+    aw_carrier_fixed = repmat(aw_carrier_rand', size(head_imu,1),1);
+    aw_head_fixed = repmat(aw_head_rand', size(head_imu,1),1);
+    carrier_imu(:,2:4) = repmat(imu_accum, 1, 3).*aw_carrier_fixed;
+    head_imu(:,2:4) = repmat(imu_accum, 1, 3).*aw_head_fixed;
+else
+    if err_dim > 21
+       err_dim = 21; 
+    end
+end
 
 aw_head_rand = zeros(3,1);
 aw_carrier_rand = zeros(3,1);
@@ -103,31 +117,31 @@ if ~real_run
     Q = 0.1 * eye(24, 24);
 else
     if ~disable_jerk
-        cov = 0.1 * eye(27,27);
-        cov(1:9,1:9) = 0.00001 * eye(9,9);
-        cov(22:27, 22:27) = 0.000001 * eye(6);
-        %         Q = 0.002 * eye(18, 18);
-        Q = 0.1 * eye(24, 24);
-        Q(1:9, 1:9) = 0.0001 * eye(9, 9);
-        Q(10:12, 10:12) = 0.000000001 * eye(3, 3);
-        Q(16:18, 16:18) = 0.000000001 * eye(3, 3);
-        
-        Q(19:24, 19:24) = 0.00001 * eye(6, 6);
+        cov = 0.001 * eye(27,27);
+%         cov(1:9,1:9) = 0.001 * eye(9,9);
+%         cov(22:27, 22:27) = 0.001 * eye(6);
+%         %         Q = 0.002 * eye(18, 18);
+        Q = 10 * eye(24, 24);
+%         Q(1:9, 1:9) = 0.001 * eye(9, 9);
+%         Q(10:12, 10:12) = 0.001 * eye(3, 3);
+%         Q(16:18, 16:18) = 0.001 * eye(3, 3);
+%         
+%         Q(19:24, 19:24) = 0.001 * eye(6, 6);
         %         Q(19:24, 19:24) = 0.1 * eye(6, 6);
         if err_dim == 27
             R_ = 0.001 * eye(27, 27);
-            R_(1:9, 1:9) = 0.001 * eye(9,9);
-            R_(10:12, 10:12) = 0.001 * eye(3, 3);
-            R_(16:18, 16:18) = 0.001 * eye(3, 3);
-            
-            R_(22:27, 22:27) = 0.001 * eye(6,6);
+%             R_(1:9, 1:9) = 0.001 * eye(9,9);
+%             R_(10:12, 10:12) = 0.001 * eye(3, 3);
+%             R_(16:18, 16:18) = 0.001 * eye(3, 3);
+%             
+%             R_(22:27, 22:27) = 0.001 * eye(6,6);
         elseif err_dim == 21
-            R_ = 0.01 * eye(21, 21);
-            R_(1:9, 1:9) = 0.00001 * eye(9,9);
-            R_(10:12, 10:12) = 0.000000001 * eye(3, 3);
-            R_(13:15, 13:15) = 0.000001 * eye(3, 3);
-            R_(16:18, 16:18) = 0.000000001 * eye(3, 3);
-            R_(19:21, 19:21) = 0.000001 * eye(3, 3);
+            R_ = 0.001 * eye(21, 21);
+%             R_(1:9, 1:9) = 0.001 * eye(9,9);
+%             R_(10:12, 10:12) = 0.001 * eye(3, 3);
+%             R_(13:15, 13:15) = 0.001 * eye(3, 3);
+%             R_(16:18, 16:18) = 0.001 * eye(3, 3);
+%             R_(19:21, 19:21) = 0.001 * eye(3, 3);
         elseif err_dim == 9
             R_ = 0.001 * eye(9,9);
         else
@@ -143,7 +157,7 @@ else
 end
 
 Err = [];
-for i = 1 : 6000 %size(head_imu,1)-1
+for i = 1 : size(head_imu,1)-1
     
     if ~real_run
         w_head = head_imu(i, 2:4)';
@@ -160,9 +174,13 @@ for i = 1 : 6000 %size(head_imu,1)-1
             aw_head = (head_imu(i+1, 2:4)' - head_imu(i, 2:4)')./imu_dt;
             aa_carrier = zeros(3,1);
             aw_carrier = (carrier_imu(i+1, 2:4)' - carrier_imu(i, 2:4)')./imu_dt;
-            if add_noise_state
-                aw_head = 0.01 * (rand(3,1) - 0.5);
-                aw_carrier = 0.01 * (rand(3,1) - 0.5);
+            if add_noise_state % && fix_aw
+                aw_head = 0.1 * (rand(3,1) - 0.5);
+                aw_carrier = 0.1 * (rand(3,1) - 0.5);
+                ba_head = 0.1 * (rand(3,1) - 0.5);
+                ba_carrier = 0.1 * (rand(3,1) - 0.5);
+                bg_head = 0.1 * (rand(3,1) - 0.5);
+                bg_carrier = 0.1 * (rand(3,1) - 0.5);
             end
         end
         w_head_next = head_imu(i+1, 2:4)';
@@ -181,7 +199,7 @@ figure,plot(Err)
 end
 function err = ProcessOnce(cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
-    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max
+    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F
 cur_state_gt = cur_state;
 cur_w_head_gt = cur_w_head;
 cur_a_head_gt = cur_a_head;
@@ -275,7 +293,8 @@ if real_run
     else
         
         [F, G] = computeDualCov(cur_w_carrier + bg_carrier + aw_carrier * imu_dt, cur_w_head + bg_head + aw_head * imu_dt, cur_a_carrier + ba_carrier, cur_a_head + ba_head, p, v, R, aw_carrier);
-        if 0
+%         [F, G] = computeDualCov(cur_w_carrier + bg_carrier, cur_w_head + bg_head, cur_a_carrier + ba_carrier, cur_a_head + ba_head, p, v, R, aw_carrier);
+        if check_F
             [state_pred_wo_err, err_pvq0] = progagateState(zeros(27,1), p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
             err_vec0 = 0.001 * ones(27, 1);
@@ -304,10 +323,13 @@ if real_run
         Twb = cur_state(1:4, 1:4);
         vwb = cur_state(1:3, 6);
         if add_noise_obs
-            cur_w_head = cur_w_head + 0.001 * (rand(3,1) - 0.5);
-            cur_w_carrier = cur_w_carrier + 0.001 * (rand(3,1) - 0.5);
-            cur_a_head = cur_a_head + 0.01 * (rand(3,1) - 0.5);
-            cur_a_carrier = cur_a_carrier + 0.01 * (rand(3,1) - 0.5);
+            cur_w_head = cur_w_head + 1 * (rand(3,1) - 0.5);
+            cur_w_carrier = cur_w_carrier + 1 * (rand(3,1) - 0.5);
+            cur_a_head = cur_a_head + 1 * (rand(3,1) - 0.5);
+            cur_a_carrier = cur_a_carrier + 1 * (rand(3,1) - 0.5);
+            Twb(1:3,4) = Twb(1:3,4) + 0.01 * (rand(3,1) - 0.5);
+            Twb(1:3,1:3) = Twb(1:3,1:3) * rodrigues(0.01 * (rand(3,1) - 0.5));
+            vwb = vwb + 0.01 * (rand(3,1) - 0.5);
         end
         
         % compute jac
@@ -449,7 +471,8 @@ elseif 0
     H(7:9, 7:9) = JlInv(err(7:9)) * JrInv(rodrigues(R));
 elseif 1
     %链式求导成对error state的雅可比
-    H(7:9, 7:9) = JlInv(err(7:9)) *rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+    H(7:9, 7:9) = JrInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+%     H(7:9, 7:9) = JlInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
 else
     H(7:9, 7:9) = eye(3);
 end
@@ -557,6 +580,7 @@ else
     A(4:6, 4:6) = -2 * SkewSymMat(w1);
     A(4:6, 7:9) = -R12 * SkewSymMat(a2);
     if 1
+        % 把bias建模成 a + ba，而不是a - ba，所以不用改变符号。
         A(4:6, 10:12) = -eye(3);
         A(4:6, 13:15) = (SkewSymMat(w1) * SkewSymMat(p12) + SkewSymMat(SkewSymMat(w1) * p12) + 2 * SkewSymMat(v12));
         A(4:6, 16:18) = R12;
