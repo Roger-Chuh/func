@@ -1,12 +1,15 @@
 function DualImuEKF()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise disable_jerk
 % close all
-use_exact_vel = true;
+use_exact_vel = false;
 real_run = true;
 add_noise = true;
 disable_jerk = true;
 
-
+if ~use_exact_vel
+    real_run = false;
+    add_noise = false;
+end
 head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
 carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
 

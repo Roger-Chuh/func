@@ -1,9 +1,9 @@
-function DualImuEKFFullBias()
+function DualImuEKFFullBiasYVR()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
-    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err
+    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err inverse_pose
 % close all
-use_exact_vel = true;
+use_exact_vel = false;
 real_run = true;
 add_noise_obs = true;
 add_noise_state = true;
@@ -11,15 +11,35 @@ disable_jerk = false;
 err_dim = 21;9; 21;27;
 iter_max = 2;
 reset_cov = true;
-check_F = true;
+check_F = false;
+
+inverse_pose = false;
 
 ignore_aw_in_err = false;
 fix_aw = true;
 
 if check_F
-    fix_aw = true;
     add_noise_obs = false;
     add_noise_state = false;
+end
+
+
+head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
+carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
+
+
+if ~use_exact_vel
+%     real_run = false;
+%     add_noise_obs = false;
+%     add_noise_state = false;
+%     fix_aw = true;
+    if check_F
+        fix_aw = true;
+    else
+        head_imu(:,2:end) = floor(head_imu(:,2:end).*100)./100;
+        carrier_imu(:,2:end) = floor(carrier_imu(:,2:end).*100)./100;
+    end
+   
 end
 
 
@@ -28,8 +48,7 @@ ba_head = zeros(3,1);
 bg_carrier = zeros(3,1);
 ba_carrier = zeros(3,1);
 
-head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
-carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
+
 
 
 if fix_aw
@@ -169,7 +188,27 @@ for i = 1 : size(head_imu,1)-1
         w_carrier_cur = carrier_imu(i+1, 2:4)';
     end
     if ~use_exact_vel
-        ProcessOnce(relative_pose_mat_stack{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)', []);
+         if i == 1
+            aa_head = zeros(3,1);
+            aw_head = (head_imu(i+1, 2:4)' - head_imu(i, 2:4)')./imu_dt;
+            aa_carrier = zeros(3,1);
+            aw_carrier = (carrier_imu(i+1, 2:4)' - carrier_imu(i, 2:4)')./imu_dt;
+            if add_noise_state % && fix_aw
+                aw_head = 0.1 * (rand(3,1) - 0.5);
+                aw_carrier = 0.1 * (rand(3,1) - 0.5);
+                ba_head = 0.1 * (rand(3,1) - 0.5);
+                ba_carrier = 0.1 * (rand(3,1) - 0.5);
+                bg_head = 0.1 * (rand(3,1) - 0.5);
+                bg_carrier = 0.1 * (rand(3,1) - 0.5);
+            end
+        end
+        w_head_next = head_imu(i+1, 2:4)';
+        a_head_next  = head_imu(i+1, 5:7)';
+        w_carrier_next  = carrier_imu(i+1, 2:4)';
+        w_carrier_cur_next = carrier_imu(i+1, 2:4)';
+        a_carrier_next = carrier_imu(i+1, 5:7)';
+        err = ProcessOnce(relative_pose_mat_stack{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)', []);
+        Err = [Err; err'];
     else
         if i == 1
             aa_head = zeros(3,1);
@@ -201,7 +240,8 @@ figure,plot(Err)
 end
 function err = ProcessOnce(cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
-    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F
+    w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F...
+    inverse_pose
 cur_state_gt = cur_state;
 cur_w_head_gt = cur_w_head;
 cur_a_head_gt = cur_a_head;
@@ -209,30 +249,67 @@ cur_w_carrier_gt = cur_w_carrier;
 cur_a_carrier_gt = cur_a_carrier;
 % propagate
 if ~use_exact_vel % && ~real_run
-    J3_head = 0.5 * imu_dt^2 * a_head;
-    J2_head = imu_dt * a_head;
-    J1_head = rodrigues(w_head * imu_dt);
     
-    J3_carrier = 0.5 * imu_dt^2 * a_carrier;
-    J2_carrier = imu_dt * a_carrier;
-    J1_carrier = rodrigues(w_carrier * imu_dt);
+    w_carrier_dt = (cur_w_carrier - bg_carrier) * imu_dt - 0.5 * aw_carrier * imu_dt^2;
+    w_head_dt = ((cur_w_head - bg_head)) * imu_dt - 0.5 * aw_head * imu_dt^2;
     
-    R1 = R';
-    p1 = -R' * p;
-    v1 = -R' * v;
     
-    R2_est = J1_head' * R1 * J1_carrier;
-    v2_est = J1_head' * (v1 + R1 * J2_carrier - J2_head);
-    p2_est = J1_head' * (p1 + v1 * imu_dt + R1 * J3_carrier - J3_head);
+    J3_head = 0.5 * imu_dt^2 * (cur_a_head - ba_head);
+    J2_head = imu_dt * (cur_a_head - ba_head);
+    J1_head = rodrigues(w_head_dt);
     
-    R = R2_est';
-    p = -R2_est' * p2_est;
-    v = -R2_est' * v2_est;
+    J3_carrier = 0.5 * imu_dt^2 * (cur_a_carrier - ba_carrier);
+    J2_carrier = imu_dt * (cur_a_carrier - ba_carrier);
+    J1_carrier = rodrigues(w_carrier_dt);
+    if inverse_pose
+        R1 = R';
+        p1 = -R' * p;
+        v1 = -R' * v;
+    else
+        R1 = R;
+        p1 = p;
+        v1 = v;
+    end
+    if inverse_pose
+        R2_est = J1_head' * R1 * J1_carrier;
+        v2_est = J1_head' * (v1 + R1 * J2_carrier - J2_head);
+        p2_est = J1_head' * (p1 + v1 * imu_dt + R1 * J3_carrier - J3_head);
+    else
+        R2_est = J1_carrier' * R1 * J1_head;
+        v2_est = J1_carrier' * (v1 + R1 * J2_head - J2_carrier);
+        p2_est = J1_carrier' * (p1 + v1 * imu_dt + R1 * J3_head - J3_carrier);
+    end
+    
+    bg_carrier_est = bg_carrier + aw_carrier * imu_dt;
+    bg_head_est = bg_head + aw_head * imu_dt;
+    ba_carrier_est = ba_carrier;
+    ba_head_est = ba_head;
+    aw_carreir_est = aw_carrier;
+    aw_head_est = aw_head;
+    
+    if ~real_run
+        if inverse_pose
+            R = R2_est';
+            p = -R2_est' * p2_est;
+            v = -R2_est' * v2_est;
+        else
+            R = R2_est;
+            p = p2_est;
+            v = v2_est;
+        end
+    end
 else
     if ~real_run
         p2_est = rodrigues(-(w_carrier * imu_dt + 0.5 * aw_carrier_rand * imu_dt^2)) * ((eye(3) + SkewSymMat(w_carrier * imu_dt + 0.5 * aw_carrier_rand * imu_dt^2)) * p + imu_dt * v + 0.5 * imu_dt^2 * (R * a_head - a_carrier));
         v2_est = rodrigues(-(w_carrier * imu_dt + 0.5 * aw_carrier_rand * imu_dt^2)) * (v + SkewSymMat(w_carrier) * p + (R * a_head - a_carrier) * imu_dt) - SkewSymMat(w_carrier_cur) * p2_est;
         R2_est = rodrigues(-(w_carrier * imu_dt + 0.5 * aw_carrier_rand * imu_dt^2)) * R * rodrigues(w_head * imu_dt + 0.5 * aw_head_rand * imu_dt^2);
+        
+        bg_carrier_est = bg_carrier + aw_carrier * imu_dt;
+        bg_head_est = bg_head + aw_head * imu_dt;
+        ba_carrier_est = ba_carrier;
+        ba_head_est = ba_head;
+        aw_carreir_est = aw_carrier;
+        aw_head_est = aw_head;
     else
         if ~disable_jerk
             w_carrier_new = (cur_w_carrier + bg_carrier) + aw_carrier * imu_dt;
@@ -274,8 +351,8 @@ end
 if real_run
     % compute cov
     if ~use_exact_vel
-        A_head = computeCov(w_head, a_head);
-        A_carrier = computeCov(w_carrier, a_carrier);
+        A_head = computeCov(w_head - bg_head, a_head - ba_head);
+        A_carrier = computeCov(w_carrier - bg_carrier, a_carrier - ba_carrier);
         
         cov_A = zeros(9, 9);
         cov_B = zeros(9, 9);
@@ -292,7 +369,13 @@ if real_run
         cov_B(7:9,7:9) = J1_head * R2_est;
         
         cov_RVP = cov_A * A_head(1:9,1:9) * cov_A' + cov_B * A_carrier(1:9,1:9) * cov_B;
-         [F, G] = computeDualCovYVR(cur_w_carrier - bg_carrier, cur_w_head - bg_head, cur_a_carrier - ba_carrier, cur_a_head - ba_head, p, v, R);
+        
+%         cov_RVP = 
+       
+%         R_(1:9, 1:9) = cov_RVP;
+        
+        
+        [F, G] = computeDualCovYVR(cur_w_carrier - bg_carrier, cur_w_head - bg_head, cur_a_carrier - ba_carrier, cur_a_head - ba_head, p, v, R);
         
         if check_F
             [state_pred_wo_err, err_pvq0] = progagateStateYVR(zeros(27,1), p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
@@ -307,6 +390,98 @@ if real_run
             err_check0 = err_vec11 - err_pvq1(1:12);
             err_check = err_vec1 - err_pvq1;
         end
+        
+        
+        R = R2_est;
+        p = p2_est;
+        v = v2_est;
+        
+        bg_carrier = bg_carrier_est;
+        bg_head = bg_head_est;
+        ba_carrier = ba_carrier_est;
+        ba_head = ba_head_est;
+        
+        cov = F * cov * F' + (F * G * imu_dt) * Q * (F * G * imu_dt)';
+        %     cov = F * cov * F' + (G) * Q * (G)' * imu_dt;
+        Twb = cur_state(1:4, 1:4);
+        vwb = cur_state(1:3, 6);
+        if add_noise_obs
+            cur_w_head = cur_w_head + 1 * (rand(3,1) - 0.5);
+            cur_w_carrier = cur_w_carrier + 1 * (rand(3,1) - 0.5);
+            cur_a_head = cur_a_head + 1 * (rand(3,1) - 0.5);
+            cur_a_carrier = cur_a_carrier + 1 * (rand(3,1) - 0.5);
+            Twb(1:3,4) = Twb(1:3,4) + 0.01 * (rand(3,1) - 0.5);
+            Twb(1:3,1:3) = Twb(1:3,1:3) * rodrigues(0.01 * (rand(3,1) - 0.5));
+            vwb = vwb + 0.01 * (rand(3,1) - 0.5);
+        end
+        
+        % compute jac
+        err_stack = [];
+        if ~disable_jerk
+            for iter = 1 : iter_max
+                [H, err] = computeMeasurementJacYVR(eye(3), Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                err_stack = [err_stack; norm(err)];
+                % update state and cov
+                S = H * cov * H' + R_;
+                K = cov * H' * inv(S);
+                dx = K * err;
+                p = p + dx(1:3);
+                v = v + dx(4:6);
+                if 1
+                    R = R * rodrigues(dx(7:9));
+                else
+                    R = rodrigues(rodrigues(R) + dx(7:9) );
+                end
+                ba_carrier = ba_carrier + dx(10:12);
+                bg_carrier = bg_carrier + dx(13:15);
+                ba_head = ba_head + dx(16:18);
+                bg_head = bg_head + dx(19:21);
+                aw_carrier = aw_carrier + dx(22:24);
+                aw_head = aw_head + dx(25:27);
+                if reset_cov
+                    if iter < -1
+                    else
+                        if 1
+                            cov = (eye(27, 27) - K * H) * cov * ((eye(27, 27) - K * H))' + K * R_ * K';
+                        elseif 0
+                            cov = cov - K * (H * cov * H' + R_) * K';
+                        else
+                            cov = (eye(27, 27) - K * H) * cov;
+                        end
+                    end
+                    J_reset = eye(27, 27);
+                    J_reset(7:9,7:9) = JrInv(-dx(7:9));
+                    cov = J_reset * cov * J_reset';
+                end
+            end
+            if ~reset_cov
+                if 0
+                    cov = (eye(27, 27) - K * H) * cov * ((eye(27, 27) - K * H))' + K * R_ * K';
+                elseif 0
+                    cov = cov - K * (H * cov * H' + R_) * K';
+                else
+                    cov = (eye(27, 27) - K * H) * cov;
+                end
+            end
+        else
+            for iter = 1 : 10
+                [H, err] = computeMeasurementJacNoJerk(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                err_stack = [err_stack; norm(err)];
+                % update state and cov
+                S = H * cov * H' + R_;
+                K = cov * H' * inv(S);
+                dx = K * err;
+                p = p + dx(1:3);
+                v = v + dx(4:6);
+                R = R * rodrigues(dx(7:9));
+                a_carrier = a_carrier + dx(10:12);
+                w_carrier = w_carrier + dx(13:15);
+                a_head = a_head + dx(16:18);
+                w_head = w_head + dx(19:21);
+            end
+            cov = (eye(21, 21) - K * H) * cov;
+        end
+        
     else
         
         [F, G] = computeDualCov(cur_w_carrier + bg_carrier + aw_carrier * imu_dt, cur_w_head + bg_head + aw_head * imu_dt, cur_a_carrier + ba_carrier, cur_a_head + ba_head, p, v, R, aw_carrier);
@@ -423,7 +598,7 @@ end
 end
 function [state1, err_pvq] = progagateStateYVR(err_vec0, p0, v0, R0, ba_head00, bg_head00, ba_carrier00, bg_carrier00, aw_carrier00, aw_head00, p1, v1, R1,...
     w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
-global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next
+global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next inverse_pose
 
 p0 = p0 + err_vec0(1:3);
 v0 = v0 + err_vec0(4:6);
@@ -457,17 +632,33 @@ else
     J2_carrier = imu_dt * (a_carrier_meas - ba_carrier0);
     J1_carrier = rodrigues(w_carrier_dt);
     
-    R1_temp = R0';
-    p1_temp = -R0' * p0;
-    v1_temp = -R0' * v0;
-    
-    R2_est_temp = J1_head' * R1_temp * J1_carrier;
-    v2_est_temp = J1_head' * (v1_temp + R1_temp * J2_carrier - J2_head);
-    p2_est_temp = J1_head' * (p1_temp + v1_temp * imu_dt + R1_temp * J3_carrier - J3_head);
-    
-    R2_est = R2_est_temp';
-    p2_est = -R2_est_temp' * p2_est_temp;
-    v2_est = -R2_est_temp' * v2_est_temp;
+    if inverse_pose
+        R1_temp = R0';
+        p1_temp = -R0' * p0;
+        v1_temp = -R0' * v0;
+    else
+        R1_temp = R0;
+        p1_temp = p0;
+        v1_temp = v0;
+    end
+    if inverse_pose
+        R2_est_temp = J1_head' * R1_temp * J1_carrier;
+        v2_est_temp = J1_head' * (v1_temp + R1_temp * J2_carrier - J2_head);
+        p2_est_temp = J1_head' * (p1_temp + v1_temp * imu_dt + R1_temp * J3_carrier - J3_head);
+    else
+        R2_est_temp = J1_carrier' * R1_temp * J1_head;
+        v2_est_temp = J1_carrier' * (v1_temp + R1_temp * J2_head - J2_carrier);
+        p2_est_temp = J1_carrier' * (p1_temp + v1_temp * imu_dt + R1_temp * J3_head - J3_carrier);
+    end
+    if inverse_pose
+        R2_est = R2_est_temp';
+        p2_est = -R2_est_temp' * p2_est_temp;
+        v2_est = -R2_est_temp' * v2_est_temp;
+    else
+        R2_est = R2_est_temp;
+        p2_est = p2_est_temp;
+        v2_est = v2_est_temp;
+    end
     
 end
 err_p = p2_est - p1;
@@ -521,6 +712,84 @@ err_aw_head = aw_head0 - aw_head00;
 
 state1 = [p2_est; v2_est; rodrigues(R2_est);];
 err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head];
+end
+function [H, err] = computeMeasurementJacYVR(J1_carrier, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
+global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err
+% err_dim = 9;
+H = zeros(err_dim, 27);
+err = zeros(err_dim,1);
+%% state order ##### p v R a1 w1 a2 w2 aw1 aw2
+
+%%   err order ##### p v R a1 w1 a2 w2
+
+%% d_errP_d_p
+err(1:3) = J1_carrier * (Twb(1:3,4) - p);
+H(1:3, 1:3) = J1_carrier * eye(3);
+
+%% d_errV_d_v
+err(4:6) = J1_carrier * (vwb - v);
+H(4:6, 4:6) = J1_carrier * eye(3);
+
+%% d_errR_d_r
+err(7:9) = rodrigues(R' * Twb(1:3,1:3));
+
+if 0
+    %这只是对state的雅可比
+    H(7:9, 7:9) = JlInv(err(7:9));
+elseif 0
+    %链式求导成对error state的雅可比
+    H(7:9, 7:9) = JlInv(err(7:9)) * JrInv(rodrigues(R));
+elseif 1
+    %链式求导成对error state的雅可比
+    H(7:9, 7:9) = JrInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+%     H(7:9, 7:9) = JlInv(err(7:9)) * rodrigues(-err(7:9)) * JrInv(rodrigues(R));
+else
+    H(7:9, 7:9) = eye(3);
+end
+if (err_dim > 9)
+    %% d_err_ba1_d_ba1
+    err(10:12) = cur_a_carrier - (cur_a_carrier - ba_carrier);
+    H(10:12, 10:12) = -eye(3);
+    
+    %% d_err_bg1_d_bg1
+    if ~ignore_aw_in_err
+        err(13:15) = cur_w_carrier - (cur_w_carrier - bg_carrier - aw_carrier * imu_dt);
+    else
+        err(13:15) = cur_w_carrier - (cur_w_carrier - bg_carrier);% - aw_carrier * imu_dt);
+    end
+    H(13:15, 13:15) = -eye(3);
+    % d_errw1_d_aw1
+    if ~ignore_aw_in_err
+      H(13:15, 22:24) = -eye(3) * imu_dt;
+    end
+    
+    %% d_erra2_d_a2
+    err(16:18) = cur_a_head - (cur_a_head - ba_head);
+    H(16:18, 16:18) = -eye(3);
+    
+    %% d_errw2_d_w2
+    if ~ignore_aw_in_err
+    err(19:21) = cur_w_head - (cur_w_head - bg_head - aw_head * imu_dt);
+    else
+        err(19:21) = cur_w_head - (cur_w_head - bg_head);% - aw_head * imu_dt);
+    end
+    H(19:21, 19:21) = -eye(3);
+    % d_errw2_d_aw2
+    if ~ignore_aw_in_err
+        H(19:21, 25:27) = -eye(3) * imu_dt;
+    end
+    if (err_dim > 21)
+        %% d_erraw1_d_aw1
+        err(22:24) = 0 - aw_carrier;
+        H(22:24, 22:24) = eye(3);
+        
+        %% d_erraw2_d_aw2
+        err(25:27) = 0 - aw_head;
+        H(25:27, 25:27) = eye(3);
+    end
+end
+% H = -H;
+% err = -err;
 end
 function [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
 global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err

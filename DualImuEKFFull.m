@@ -1,6 +1,6 @@
 function DualImuEKFFull()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
-    disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov
+    disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov ignore_aw_in_err
 % close all
 use_exact_vel = true;
 real_run = true;
@@ -10,6 +10,7 @@ disable_jerk = false;
 err_dim = 9;27;9; 21;
 
 reset_cov = true;
+ignore_aw_in_err = false;
 
 head_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\head_imu_data.txt');
 carrier_imu = load('G:\matlab\data\direct\gt\D2_011\4\tbc\carrier_imu_data.txt');
@@ -416,7 +417,7 @@ state1 = [p2_est; v2_est; rodrigues(R2_est);];
 err_pvq = [err_p; err_v; err_R; err_a_carrier; err_w_carrier; err_a_head; err_w_head; err_aw_carrier; err_aw_head];
 end
 function [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
-global R v p w_head a_head w_carrier a_carrier imu_dt aw_carrier aw_head err_dim
+global R v p w_head a_head w_carrier a_carrier imu_dt aw_carrier aw_head err_dim ignore_aw_in_err
 % err_dim = 9;
 H = zeros(err_dim, 27);
 err = zeros(err_dim,1);
@@ -454,20 +455,31 @@ if (err_dim > 9)
     H(10:12, 10:12) = eye(3);
     
     %% d_errw1_d_w1
+    if ~ignore_aw_in_err
     err(13:15) = cur_w_carrier - (w_carrier + aw_carrier * imu_dt);
+    else
+        err(13:15) = cur_w_carrier - (w_carrier);% + aw_carrier * imu_dt);
+    end
     H(13:15, 13:15) = eye(3);
     % d_errw1_d_aw1
-    H(13:15, 22:24) = eye(3) * imu_dt;
-    
+    if ~ignore_aw_in_err
+        H(13:15, 22:24) = eye(3) * imu_dt;
+    end
     %% d_erra2_d_a2
     err(16:18) = cur_a_head - a_head;
     H(16:18, 16:18) = eye(3);
     
     %% d_errw2_d_w2
+    if ~ignore_aw_in_err
     err(19:21) = cur_w_head - (w_head + aw_head * imu_dt);
+    else
+        err(19:21) = cur_w_head - (w_head);% + aw_head * imu_dt);
+    end
     H(19:21, 19:21) = eye(3);
     % d_errw2_d_aw2
-    H(19:21, 25:27) = eye(3) * imu_dt;
+    if ~ignore_aw_in_err
+        H(19:21, 25:27) = eye(3) * imu_dt;
+    end
     if (err_dim > 21)
         %% d_erraw1_d_aw1
         err(22:24) = 0 - aw_carrier;
