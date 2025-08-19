@@ -11,8 +11,8 @@ for i = 1 : length(json_head.Sequence.Dataset.Data)
     gyro = [json_head.Sequence.Dataset.Data(i).g_x json_head.Sequence.Dataset.Data(i).g_y json_head.Sequence.Dataset.Data(i).g_z];
     acc = [json_head.Sequence.Dataset.Data(i).a_x json_head.Sequence.Dataset.Data(i).a_y json_head.Sequence.Dataset.Data(i).a_z];
     
-%     gyro = gyro .* 2000 .* pi ./ 180 ./ 32768 .* 2.0;
-%     acc = acc .* 9.807 ./ 2048 .* 2.0;
+    gyro = gyro .* 2000 .* pi ./ 180 ./ 32768 .* 2.0;
+    acc = acc .* 9.807 ./ 2048 .* 2.0;
     imudata_head = [imudata_head;[json_head.Sequence.Dataset.Data(i).timestamp * 1e-9 gyro acc]];
 end
 imudata_controller = [];
