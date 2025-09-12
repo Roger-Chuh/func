@@ -4,6 +4,7 @@ close all;
 
 inputDir = '\\192.168.9.225\original_hand_dataset\zrj\';
 % inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\';
+% inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\Download\';
 
 for jid = 0 : 1
     
@@ -23,7 +24,7 @@ for jid = 0 : 1
     
     try
         a = load(strcat(inputDir,sprintf('hf_predict_output_%d.txt',jid)));
-        b = load(strcat(inputDir,sprintf('hf_filter_output_%d.txt',jid)));
+        b = load(strcat(inputDir,sprintf('hf_inte_output_%d.txt',jid)));
         c = load(strcat(inputDir,sprintf('hf_ekf_output_%d.txt',jid)));
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');legend('predict','hf','ekf');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');legend('predict','hf','ekf')
@@ -34,6 +35,17 @@ for jid = 0 : 1
     catch
         fprintf('sth wrong1\n');
     end
+    
+    trans_before = load(strcat(inputDir,sprintf('cur_trans_%d.txt',jid)));
+    trans_after = load(strcat(inputDir,sprintf('updated_trans_%d.txt',jid)));
+    len = min([size(trans_before, 1) size(trans_after, 1)]);
+    figure,subplot(2,1,1);plot([trans_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(trans_after(1:len,2:4),'-b');subplot(2,1,2);plot([trans_before(1:len,2:4) - trans_after(1:len,2:4)]);title('trans');
+    
+    
+    rot_before = load(strcat(inputDir,sprintf('cur_rot_%d.txt',jid)));
+    rot_after = load(strcat(inputDir,sprintf('updated_rot_%d.txt',jid)));
+    len = min([size(rot_before, 1) size(rot_after, 1)]);
+    figure,subplot(2,1,1);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(2,1,2);plot([rot_before(1:len,2:4) - rot_after(1:len,2:4)]);title('rot');
     
     
     vel_before = load(strcat(inputDir,sprintf('cur_v_%d.txt',jid)));
@@ -47,7 +59,7 @@ for jid = 0 : 1
     ba_head = load(strcat(inputDir,sprintf('updated_ba_head_%d.txt',jid)));
     len = min([size(acc_head_before, 1) size(acc_head_after, 1) size(ba_head,1)]);
     figure,subplot(2,1,1);plot([acc_head_before(1:len,2:4)],'-r','LineWidth', 2);hold on;
-    plot(acc_head_after(1:len,2:4) + ba_head(1:len,2:4), '-g');
+%     plot(acc_head_after(1:len,2:4) + ba_head(1:len,2:4), '-g');
     plot(acc_head_after(1:len,2:4),'-b');subplot(2,1,2);plot([acc_head_before(1:len,2:4) - acc_head_after(1:len,2:4)]);title('acc head');
     
     acc_carrier_before = load(strcat(inputDir,sprintf('cur_acc_carrier_%d.txt',jid)));
@@ -79,7 +91,7 @@ for jid = 0 : 1
     
     a = load(fullfile(inputDir, sprintf('lba_info_%d.txt', jid)));
     idx1 = find(a(:,2) == 0);
-    idx2 = find(a(:,2) == 4);
+    idx2 = find(a(:,2) == 1);
     figure,subplot(1,2,1),plot(a(idx1, [4:6]));legend('prior','reproj','trifocal');
     subplot(1,2,2),plot(a(idx2, [3:6]));legend('imu','prior','reproj','trifocal');
     
@@ -95,6 +107,30 @@ for jid = 0 : 1
     subplot(2,2,4);plot(err_pvr(:,20:22));title('err acc head');
     
     
+    pose_diff = load(strcat(inputDir,sprintf('pose_diff_%d.txt',jid)));
+    figure, subplot(4,1,1);plot(pose_diff(:,2:4));title(sprintf('rot diff'));
+            subplot(4,1,2);plot(pose_diff(:,5:7));title(sprintf('trans diff'));
+            subplot(4,1,3);plot(pose_diff(:,8:9));legend('old reproj','new reproj');
+            subplot(4,1,4);plot(pose_diff(:,10));title('vm num');
+    
 end
 
+a = load(strcat(inputDir,sprintf('processImgOnce.txt')));
+b = load(strcat(inputDir,sprintf('processImuOnce_2.txt')));
+c = load(strcat(inputDir,sprintf('processImuOnce_0.txt')));
+d = load(strcat(inputDir,sprintf('processImuOnce_1.txt')));
+
+figure,subplot(2,4,1);plot(a(:,2));title('img (ms)');
+       subplot(2,4,2);plot(b(:,2));title('head imu (ms)');
+       subplot(2,4,3);plot(c(:,2));title('controller imu0 (ms)');
+       subplot(2,4,4);plot(d(:,2));title('controller imu1 (ms)');
+       subplot(2,4,5);hist(a(:,2), 100);title('img (ms)');
+       subplot(2,4,6);hist(b(:,2), 100);title('head imu (ms)');
+       subplot(2,4,7);hist(c(:,2), 100);title('controller imu0 (ms)');
+       subplot(2,4,8);hist(d(:,2), 100);title('controller imu1 (ms)');
+       
+figure,subplot(4,1,1),plot(a(:,2:14));legend('all','prep','ProvideAllImus', 'GetPrediction2','front end','feed vm to estimator','orca','lba','marg','OptBatch','imu graph','append','trim');
+       subplot(4,1,2),hist(a(:,2:14), 20);legend('all','prep','ProvideAllImus', 'GetPrediction2','front end','feed vm to estimator','orca','lba','marg','OptBatch','imu graph','append','trim');
+       subplot(4,1,3),hist(a(:,[8 9 12 13 14]), 100);legend('orca(ms)','lba','imu graph','append','trim');
+       subplot(4,1,4),plot(a(:,[8 9 12 13 14]));legend('orca(ms)','lba','imu graph','append','trim');
 end
