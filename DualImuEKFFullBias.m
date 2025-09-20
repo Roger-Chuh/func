@@ -1,17 +1,17 @@
 function DualImuEKFFullBias()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
-    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err  aa_carrier_rand aa_head_rand
+    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err  aa_carrier_rand aa_head_rand use_aa
 % close all
 use_exact_vel = true;
 real_run = true;
 add_noise_obs = true;
 add_noise_state = true;
 disable_jerk = false;
-err_dim = 21;9; 21;27;
+err_dim = 9;21;9; 21;27;
 iter_max = 2;
 reset_cov = true;
-check_F = true;
+check_F = false;%true;
 
 ignore_aw_in_err = false;
 fix_aw = true;
@@ -22,6 +22,7 @@ if check_F
     add_noise_state = false;
 end
 
+use_aa = true;
 
 bg_head = zeros(3,1);
 ba_head = zeros(3,1);
@@ -125,14 +126,26 @@ a_carrier = carrier_imu(1, 5:7)';
 
 if ~real_run
     cov = 1 * eye(33,33);
-    Q = 0.1 * eye(24, 24);
+    if ~use_aa
+        Q = 0.1 * eye(24, 24);
+    else
+        Q = 0.1 * eye(36, 36);
+    end
 else
     if ~disable_jerk
-        cov = 0.001 * eye(27,27);
+        if ~use_aa
+            cov = 0.001 * eye(27,27);
+        else
+            cov = 0.001 * eye(33,33);
+        end
 %         cov(1:9,1:9) = 0.001 * eye(9,9);
 %         cov(22:27, 22:27) = 0.001 * eye(6);
 %         %         Q = 0.002 * eye(18, 18);
+if ~use_aa
         Q = 10 * eye(24, 24);
+else
+        Q = 10 * eye(36, 36);
+end
 %         Q(1:9, 1:9) = 0.001 * eye(9, 9);
 %         Q(10:12, 10:12) = 0.001 * eye(3, 3);
 %         Q(16:18, 16:18) = 0.001 * eye(3, 3);
@@ -213,7 +226,7 @@ end
 function err = ProcessOnce(cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
     w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F...
-    aa_carrier aa_head aa_carrier_rand aa_head_rand
+    aa_carrier aa_head aa_carrier_rand aa_head_rand use_aa
 cur_state_gt = cur_state;
 cur_w_head_gt = cur_w_head;
 cur_a_head_gt = cur_a_head;
@@ -399,18 +412,31 @@ if real_run
                 bg_head = bg_head + dx(19:21);
                 aw_carrier = aw_carrier + dx(22:24);
                 aw_head = aw_head + dx(25:27);
+                if use_aa
+                    aa_carrier = aa_carrier + dx(28:30);
+                    aa_head = aa_head + dx(31:33);
+                end
                 if reset_cov
                     if iter < -1
                     else
                         if 1
-                            cov = (eye(27, 27) - K * H) * cov * ((eye(27, 27) - K * H))' + K * R_ * K';
+%                             cov = (eye(27, 27) - K * H) * cov * ((eye(27, 27) - K * H))' + K * R_ * K';
+                            if ~use_aa
+                                cov = (eye(27, 27) - K * H) * cov * ((eye(27, 27) - K * H))' + K * R_ * K';
+                            else
+                                cov = (eye(33, 33) - K * H) * cov * ((eye(33, 33) - K * H))' + K * R_ * K';
+                            end
                         elseif 0
                             cov = cov - K * (H * cov * H' + R_) * K';
                         else
                             cov = (eye(27, 27) - K * H) * cov;
                         end
                     end
-                    J_reset = eye(27, 27);
+                    if ~use_aa
+                        J_reset = eye(27, 27);
+                    else
+                        J_reset = eye(33, 33);
+                    end
                     J_reset(7:9,7:9) = JrInv(-dx(7:9));
                     cov = J_reset * cov * J_reset';
                 end
@@ -450,7 +476,7 @@ end
 end
 function [state1, err_pvq] = progagateStateYVR(err_vec0, p0, v0, R0, ba_head00, bg_head00, ba_carrier00, bg_carrier00, aw_carrier00, aw_head00, p1, v1, R1,...
     w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
-global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next
+global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next use_aa
 
 p0 = p0 + err_vec0(1:3);
 v0 = v0 + err_vec0(4:6);
@@ -559,9 +585,13 @@ state1 = [p2_est; v2_est; rodrigues(R2_est);];
 err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head; err_aa_carrier; err_aa_head];
 end
 function [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
-global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err
+global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err use_aa
 % err_dim = 9;
-H = zeros(err_dim, 27);
+if ~use_aa
+    H = zeros(err_dim, 27);
+else
+    H = zeros(err_dim, 33);
+end
 err = zeros(err_dim,1);
 %% state order ##### p v R a1 w1 a2 w2 aw1 aw2
 

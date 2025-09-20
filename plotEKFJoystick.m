@@ -6,7 +6,7 @@ inputDir = '\\192.168.9.225\original_hand_dataset\zrj\';
 % inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\';
 % inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\Download\';
 
-for jid = 0 : 1
+for jid = 0
     
     aa = load(strcat(inputDir,sprintf('delayed_time_%d.txt', jid)));
     figure,plot([aa(:,2) [-aa(:,3)] [-aa(:,2) - aa(:,3)] [-aa(:,3) + aa(:,2) + aa(:,3)]]);legend('head - carrier','head - img','carrier - img', 'head - carrier');
@@ -92,9 +92,12 @@ for jid = 0 : 1
     a = load(fullfile(inputDir, sprintf('lba_info_%d.txt', jid)));
     idx1 = find(a(:,2) == 0);
     idx2 = find(a(:,2) == 1);
-    figure,subplot(1,2,1),plot(a(idx1, [4:6]));legend('prior','reproj','trifocal');
-    subplot(1,2,2),plot(a(idx2, [3:6]));legend('imu','prior','reproj','trifocal');
-    
+    figure,subplot(3,2,1),plot(a(idx1, [4:6]));legend('prior','reproj','trifocal');title('iter 0');
+    subplot(3,2,2),plot(a(idx2, [3:6]));legend('imu','prior','reproj','trifocal');title('iter n');
+    subplot(3,2,3),plot(a(idx1, [5]));title('iter 0 reproj, all mean');
+    subplot(3,2,4),hist(a(idx1, [5]), 30);title('iter 0 reproj, all mean');
+    subplot(3,2,5),plot(a(idx1, [7]));title('iter 0 reproj, cur mean');
+    subplot(3,2,6),hist(a(idx1, [7]), 30);title('iter 0 reproj, cur mean');
     
     err_pvr = load(strcat(inputDir,sprintf('err_pvr_%d.txt',jid)));
     figure,subplot(3,1,1);plot(err_pvr(:,2:4));title('err p');
