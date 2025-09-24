@@ -6,7 +6,7 @@ inputDir = '\\192.168.9.225\original_hand_dataset\zrj\';
 % inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\';
 % inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\Download\';
 
-for jid = 0
+for jid = 0 : 1
     
     aa = load(strcat(inputDir,sprintf('delayed_time_%d.txt', jid)));
     figure,plot([aa(:,2) [-aa(:,3)] [-aa(:,2) - aa(:,3)] [-aa(:,3) + aa(:,2) + aa(:,3)]]);legend('head - carrier','head - img','carrier - img', 'head - carrier');

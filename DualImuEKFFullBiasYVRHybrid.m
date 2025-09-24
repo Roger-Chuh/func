@@ -1,8 +1,10 @@
 function DualImuEKFFullBiasYVRHybrid()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
-    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err inverse_pose aa_carrier_rand aa_head_rand use_aa ignore_aa_in_err
+    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err inverse_pose aa_carrier_rand aa_head_rand use_aa ignore_aa_in_err...
+    use_trivial_speed_err
 % close all
+use_trivial_speed_err = false;
 use_exact_vel = false;
 real_run = true;
 add_noise_obs = true;
@@ -227,7 +229,7 @@ for i = 1 : size(head_imu,1)-1
         w_carrier_next  = carrier_imu(i+1, 2:4)';
         w_carrier_cur_next = carrier_imu(i+1, 2:4)';
         a_carrier_next = carrier_imu(i+1, 5:7)';
-        err = ProcessOnce(relative_pose_mat_stack{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)', []);
+        err = ProcessOnce(relative_pose_mat_stack{i+1,1}(1:3, 6), relative_pose_mat_stack{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)', []);
         Err = [Err; err'];
     else
         if i == 1
@@ -249,7 +251,7 @@ for i = 1 : size(head_imu,1)-1
         w_carrier_next  = carrier_imu(i+1, 2:4)';
         w_carrier_cur_next = carrier_imu(i+1, 2:4)';
         a_carrier_next = carrier_imu(i+1, 5:7)';
-        err = ProcessOnce(relative_pose_mat_stack_exact{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)',  carrier_imu(i+1, 2:4)');
+        err = ProcessOnce(relative_pose_mat_stack{i+1,1}(1:3, 6),(relative_pose_mat_stack_exact{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)',  carrier_imu(i+1, 2:4)');
         Err = [Err; err'];
     end
     
@@ -258,7 +260,7 @@ end
 
 figure,plot(Err)
 end
-function err = ProcessOnce(cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
+function err = ProcessOnce(cur_trivial_vel, cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
     w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F...
     inverse_pose aa_carrier_rand aa_head_rand aa_head aa_carrier use_aa
@@ -442,7 +444,7 @@ if real_run
         err_stack = [];
         if ~disable_jerk
             for iter = 1 : iter_max
-                [H, err] = computeMeasurementJacYVR(eye(3), Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                [H, err] = computeMeasurementJacYVR(cur_trivial_vel, eye(3), Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
                 err_stack = [err_stack; norm(err)];
                 % update state and cov
                 S = H * cov * H' + R_;
@@ -500,7 +502,7 @@ if real_run
             end
         else
             for iter = 1 : 10
-                [H, err] = computeMeasurementJacNoJerk(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                [H, err] = computeMeasurementJacNoJerk(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
                 err_stack = [err_stack; norm(err)];
                 % update state and cov
                 S = H * cov * H' + R_;
@@ -563,7 +565,7 @@ if real_run
         err_stack = [];
         if ~disable_jerk
             for iter = 1 : iter_max
-                [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                [H, err] = computeMeasurementJac(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
                 err_stack = [err_stack; norm(err)];
                 % update state and cov
                 S = H * cov * H' + R_;
@@ -609,7 +611,7 @@ if real_run
             end
         else
             for iter = 1 : 10
-                [H, err] = computeMeasurementJacNoJerk(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
+                [H, err] = computeMeasurementJacNoJerk(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier);
                 err_stack = [err_stack; norm(err)];
                 % update state and cov
                 S = H * cov * H' + R_;
@@ -752,7 +754,7 @@ err_aw_head = aw_head0 - aw_head00;
 state1 = [p2_est; v2_est; rodrigues(R2_est);];
 err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head];
 end
-function [H, err] = computeMeasurementJacYVR(J1_carrier, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
+function [H, err] = computeMeasurementJacYVR(cur_trivial_vel, J1_carrier, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
 global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err use_aa aa_carrier aa_head ignore_aa_in_err...
     a_carrier w_carrier
 % err_dim = 9;
@@ -847,8 +849,9 @@ end
 % H = -H;
 % err = -err;
 end
-function [H, err] = computeMeasurementJac(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
-global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err
+function [H, err] = computeMeasurementJac(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
+global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err...
+    use_trivial_speed_err
 % err_dim = 9;
 H = zeros(err_dim, 27);
 err = zeros(err_dim,1);
@@ -861,9 +864,13 @@ err(1:3) = Twb(1:3,4) - p;
 H(1:3, 1:3) = eye(3);
 
 %% d_errV_d_v
-err(4:6) = vwb - v;
-H(4:6, 4:6) = eye(3);
-
+if ~use_trivial_speed_err
+    err(4:6) = vwb - v;
+    H(4:6, 4:6) = eye(3);
+else
+    err(4:6) = vwb - v;
+    H(4:6, 4:6) = eye(3);
+end
 %% d_errR_d_r
 err(7:9) = rodrigues(R' * Twb(1:3,1:3));
 
@@ -925,7 +932,7 @@ end
 % H = -H;
 % err = -err;
 end
-function [H, err] = computeMeasurementJacNoJerk(Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
+function [H, err] = computeMeasurementJacNoJerk(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
 global R v p w_head a_head w_carrier a_carrier imu_dt aw_carrier aw_head
 H = zeros(21, 21);
 err = zeros(21,1);
