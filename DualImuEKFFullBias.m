@@ -1,10 +1,12 @@
 function DualImuEKFFullBias()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov...
-    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err  aa_carrier_rand aa_head_rand use_aa use_trivial_speed_err fixed_state
+    bg_head ba_head bg_carrier ba_carrier iter_max fix_aw check_F ignore_aw_in_err  aa_carrier_rand aa_head_rand use_aa use_trivial_speed_err fixed_state disable_aw
 % close all
 use_trivial_speed_err = false;
-fixed_state = 2;
+fixed_state = 1;
+disable_aw = true;
+
 use_exact_vel = true;
 real_run = true;
 add_noise_obs = false;
@@ -228,7 +230,7 @@ end
 function err = ProcessOnce(cur_trivial_vel, cur_state, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier, cur_w_carrier_next)
 global R v p w_head a_head w_carrier a_carrier imu_dt use_exact_vel w_carrier_cur aw_carrier cov aw_head real_run Q R_ add_noise_state add_noise_obs disable_jerk...
     w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next aw_carrier_rand aw_head_rand reset_cov bg_head ba_head bg_carrier ba_carrier iter_max check_F...
-    aa_carrier aa_head aa_carrier_rand aa_head_rand use_aa fixed_state
+    aa_carrier aa_head aa_carrier_rand aa_head_rand use_aa fixed_state disable_aw
 cur_state_gt = cur_state;
 cur_w_head_gt = cur_w_head;
 cur_a_head_gt = cur_a_head;
@@ -355,6 +357,10 @@ if real_run
             [state_pred_wo_err, err_pvq0] = progagateState(zeros(33,1), p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head, aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
             err_vec0 = 0.001 * ones(33, 1);
+            if disable_aw
+                err_vec0(22:33,1) = zeros(12,1);
+            end
+            
             if fixed_state == 1
                 err_vec0(10:15,1) = zeros(6,1);
                 err_vec0(22:27,1) = zeros(6,1);
@@ -368,6 +374,8 @@ if real_run
                 err_vec0_fix2 = err_vec0([1:15 22:27]);
                 err_vec_fix2 = F_small * err_vec0_fix2;
             end
+            
+
             
             err_vec1 = F * err_vec0;
             [state_pred_w_err, err_pvq1] = progagateState(err_vec0, p, v, R, ba_head, bg_head, ba_carrier, bg_carrier, aw_carrier, aw_head,aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
@@ -502,7 +510,7 @@ end
 end
 function [state1, err_pvq] = progagateStateYVR(err_vec0, p0, v0, R0, ba_head00, bg_head00, ba_carrier00, bg_carrier00, aw_carrier00, aw_head00, p1, v1, R1,...
     w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
-global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next use_aa fixed_state
+global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next use_aa fixed_state disable_aw
 
 p0 = p0 + err_vec0(1:3);
 v0 = v0 + err_vec0(4:6);
@@ -564,7 +572,7 @@ err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err
 end
 function [state1, err_pvq] = progagateState(err_vec0, p0, v0, R0, ba_head00, bg_head00, ba_carrier00, bg_carrier00, aw_carrier00, aw_head00,  aa_carrier00, aa_head00, p1, v1, R1,...
     w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
-global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next fixed_state
+global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next fixed_state disable_aw
 
 p0 = p0 + err_vec0(1:3);
 v0 = v0 + err_vec0(4:6);
@@ -621,7 +629,7 @@ state1 = [p2_est; v2_est; rodrigues(R2_est);];
 err_pvq = [err_p; err_v; err_R; err_ba_carrier; err_bg_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head; err_aa_carrier; err_aa_head];
 end
 function [H, err] = computeMeasurementJac(cur_trivial_vel, Twb, vwb, cur_w_head, cur_a_head, cur_w_carrier, cur_a_carrier)
-global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err use_aa use_trivial_speed_err fixed_state
+global R v p imu_dt aw_carrier aw_head err_dim bg_head ba_head bg_carrier ba_carrier ignore_aw_in_err use_aa use_trivial_speed_err fixed_state disable_aw
 % err_dim = 9;
 if ~use_aa
     H = zeros(err_dim, 27);
@@ -761,7 +769,7 @@ H(19:21, 19:21) = eye(3);
 H = -H;
 end
 function [F, G] = computeDualCovYVR(w1, w2, a1, a2, p12, v12, R12)
-global imu_dt real_run disable_jerk fixed_state
+global imu_dt real_run disable_jerk fixed_state disable_aw
 
 A = zeros(27, 27);
 A(1:3,1:3) = -SkewSymMat(w1);
@@ -903,7 +911,7 @@ else
 end
 end
 function [F, G, F_small] = computeDualCovFull(w1, w2, a1, a2, p12, v12, R12, aw1)
-global imu_dt real_run disable_jerk fixed_state
+global imu_dt real_run disable_jerk fixed_state disable_aw
 F_small = [];
 if 0
     A = zeros(27, 27);
@@ -962,6 +970,10 @@ else
         %row: ep ev er ea1 ew1 ea2 ew2 eaa1 eaw1 eaa2 eaw2
         A_small = zeros(21,21);
         F_orig_full = expm(AA * imu_dt);
+        if disable_aw
+            AA(22:33,:) = zeros(size(AA,1),12)';
+            AA(:,22:33) = zeros(size(AA,1),12);
+        end
         if fixed_state == 1
             A_small(:, 1:9) = AA([1:9 16:21 28:33], 1:9);
             A_small(1:9,:) = AA(1:9,[1:9 16:21 28:33]);
@@ -1009,14 +1021,22 @@ else
         if fixed_state == 1
             F_orig_full(:, 10:15) = zeros(size(AA,1),6);
             F_orig_full(10:15,:) = zeros(size(AA,1),6)';
+            F_orig_full(10:15, 10:15) = eye(6);
             F_orig_full(:, 22:27) = zeros(size(AA,1),6);
             F_orig_full(22:27,:) = zeros(size(AA,1),6)';
+            F_orig_full(22:27, 22:27) = eye(6);
         end
         if fixed_state == 2
             F_orig_full(:, 16:21) = zeros(size(AA,1),6);
             F_orig_full(16:21,:) = zeros(size(AA,1),6)';
+            F_orig_full(16:21,16:21) = eye(6);
             F_orig_full(:, 28:33) = zeros(size(AA,1),6);
             F_orig_full(28:33,:) = zeros(size(AA,1),6)';
+            F_orig_full(28:33,28:33) = eye(6);
+        end
+        if disable_aw
+            F_orig_full(22:33,:) = zeros(size(AA,1),12)';
+            F_orig_full(:, 22:33) = zeros(size(AA,1),12);
         end
         F = F_orig_full;
         F_check = eye(size(AA)) + AA * imu_dt + 0.5 * (AA * AA * imu_dt * imu_dt)+  (AA * AA * AA * imu_dt * imu_dt * imu_dt) / 6;
