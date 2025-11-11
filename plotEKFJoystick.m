@@ -8,10 +8,10 @@ inputDir = '\\192.168.9.225\original_hand_dataset\zrj\';
 
 inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\Download\shared\';
 
-for jid = 0 %: 1
+for jid = 1 %: 1
     
     aa = load(strcat(inputDir,sprintf('delayed_time_%d.txt', jid)));
-    figure,plot([aa(:,2) [-aa(:,3)] [-aa(:,2) - aa(:,3)] [-aa(:,3) + aa(:,2) + aa(:,3)]]);legend('head - carrier','head - img','carrier - img', 'head - carrier');
+    figure,subplot(3,2,[1 2]),plot([aa(:,2) [-aa(:,3)] [-aa(:,2) - aa(:,3)] [-aa(:,3) + aa(:,2) + aa(:,3)]]);legend('head - carrier','head - img','carrier - img', 'head - carrier');
     
     %     bb = load(strcat(inputDir,'diff_in_dt.txt'));
     %     figure,plot(bb * 1000)
@@ -20,8 +20,8 @@ for jid = 0 %: 1
     bg_head = load(strcat(inputDir,sprintf('bg_%d.txt', jid)));
     ba_carrier = load(strcat(inputDir,sprintf('ba_carrier_%d.txt', jid)));
     bg_carrier = load(strcat(inputDir,sprintf('bg_carrier_%d.txt', jid)));
-    figure,subplot(2,2,1);plot(bg_head(:,2:4));title('bg head');subplot(2,2,2);plot(ba_head(:,2:4));title('ba head');
-    subplot(2,2,3);plot(bg_carrier(:,2:4));title('bg carrier');subplot(2,2,4);plot(ba_carrier(:,2:4));title('ba carrier');
+    subplot(3,2,3);plot(bg_head(:,2:4));title('bg head');subplot(3,2,4);plot(ba_head(:,2:4));title('ba head');
+    subplot(3,2,5);plot(bg_carrier(:,2:4));title('bg carrier');subplot(3,2,6);plot(ba_carrier(:,2:4));title('ba carrier');
     
     zupt = load(strcat(inputDir,sprintf('use_zupt_%d.txt',jid)));
     try
@@ -30,14 +30,24 @@ for jid = 0 %: 1
         c = load(strcat(inputDir,sprintf('hf_ekf_output_%d.txt',jid)));
         d = load(strcat(inputDir,sprintf('output_%d.txt',jid)));
         update_intervals = diff(d(:,1));
+        
+        aa = GetPoseMat(a);
+        bb = GetPoseMat(b);
+        cc = GetPoseMat(c);
+        
+        
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');legend('predict','hf','ekf');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');legend('predict','hf','ekf')
         
-        figure;subplot(2,1,1),hold on;plot(b(:,1),[b(:,2)],'-b');plot(b(:,1),[b(:,3)],'-b');plot(b(:,1),[b(:,4)],'-b');
+        figure;subplot(3,1,1),hold on;plot(b(:,1),[b(:,2)],'-b');plot(b(:,1),[b(:,3)],'-b');plot(b(:,1),[b(:,4)],'-b');
         plot(a(:,1),[a(:,2)],'-r');plot(a(:,1),[a(:,3)],'-r');plot(a(:,1),[a(:,4)],'-r');
         plot(c(:,1),[c(:,2)],'-g');plot(c(:,1),[c(:,3)],'-g');plot(c(:,1),[c(:,4)],'-g');
         legend('hf','hf','hf', 'predict','predict','predict', 'ekf','ekf','ekf');
-        subplot(2,1,2);hold on;plot(d(2:end,1), 10 .* update_intervals,'-g');plot(d(:,1), d(:, 2:4),'-r');plot(b(:,1), b(:, 2:4),'-b');legend('lf update','lf','lf','lf','hf inte','hf inte','hf inte');
+        subplot(3,1,2);hold on;plot(d(2:end,1), 10 .* update_intervals,'-g');plot(d(:,1), d(:, 2:4),'-r');plot(b(:,1), b(:, 2:4),'-b');legend('lf update','lf','lf','lf','hf inte','hf inte','hf inte');
+        subplot(3,1,3),hold on;plot(bb(:,1),[bb(:,2)],'-b');plot(bb(:,1),[bb(:,3)],'-b');plot(bb(:,1),[bb(:,4)],'-b');
+        plot(aa(:,1),[aa(:,2)],'-r');plot(aa(:,1),[aa(:,3)],'-r');plot(aa(:,1),[aa(:,4)],'-r');
+        plot(cc(:,1),[cc(:,2)],'-g');plot(cc(:,1),[cc(:,3)],'-g');plot(cc(:,1),[c(:,4)],'-g');
+        legend('hf','hf','hf', 'predict','predict','predict', 'ekf','ekf','ekf');
     catch
         fprintf('sth wrong1\n');
     end
@@ -45,7 +55,7 @@ for jid = 0 %: 1
     trans_before = load(strcat(inputDir,sprintf('cur_trans_%d.txt',jid)));
     trans_after = load(strcat(inputDir,sprintf('updated_trans_%d.txt',jid)));
     len = min([size(trans_before, 1) size(trans_after, 1)]);
-    figure,subplot(2,1,1);plot([trans_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(trans_after(1:len,2:4),'-b');subplot(2,1,2);plot([trans_before(1:len,2:4) - trans_after(1:len,2:4)]);title('trans');
+    figure,subplot(7,1,1);plot([trans_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(trans_after(1:len,2:4),'-b');subplot(7,1,2);plot([trans_before(1:len,2:4) - trans_after(1:len,2:4)]);title('trans');
     
     
     rot_before = load(strcat(inputDir,sprintf('cur_rot_%d.txt',jid)));
@@ -58,53 +68,63 @@ for jid = 0 %: 1
         err_rot_vec_diff = [err_rot_vec_diff;[rodrigues(rodrigues(rot_before(id,2:4)) * rodrigues(rot_after(id,2:4))')]'];
     end
     %     figure,subplot(2,1,1);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(2,1,2);plot([rot_before(1:len,2:4) - rot_after(1:len,2:4)]);title('rot');
-    figure,subplot(3,1,1);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(3,1,2);plot(err_rot);title('rot (rad)');subplot(3,1,3);plot(err_rot_vec_diff);title('rot vec diff (rad)');
+    subplot(7,1,3);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(7,1,4);plot(err_rot);title('rot (rad)');subplot(7,1,5);plot(err_rot_vec_diff);title('rot vec diff (rad)');
     
     
     vel_before = load(strcat(inputDir,sprintf('cur_v_%d.txt',jid)));
     vel_after = load(strcat(inputDir,sprintf('updated_v_%d.txt',jid)));
     len = min([size(vel_before, 1) size(vel_after, 1)]);
-    figure,subplot(2,1,1);plot([vel_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(vel_after(1:len,2:4),'-b');subplot(2,1,2);plot([vel_before(1:len,2:4) - vel_after(1:len,2:4)]);title('vel');
+    subplot(7,1,6);plot([vel_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(vel_after(1:len,2:4),'-b');subplot(7,1,7);plot([vel_before(1:len,2:4) - vel_after(1:len,2:4)]);title('vel');
     
     
     acc_head_before = load(strcat(inputDir,sprintf('cur_acc_head_%d.txt',jid)));
     acc_head_after = load(strcat(inputDir,sprintf('updated_acc_head_%d.txt',jid)));
     ba_head = load(strcat(inputDir,sprintf('updated_ba_head_%d.txt',jid)));
     len = min([size(acc_head_before, 1) size(acc_head_after, 1) size(ba_head,1)]);
-    figure,subplot(2,1,1);plot([acc_head_before(1:len,2:4)],'-r','LineWidth', 2);hold on;
+    figure,subplot(5,4,1);plot([acc_head_before(1:len,2:4)],'-r','LineWidth', 2);hold on;
     %     plot(acc_head_after(1:len,2:4) + ba_head(1:len,2:4), '-g');
-    plot(acc_head_after(1:len,2:4),'-b');subplot(2,1,2);plot([acc_head_before(1:len,2:4) - acc_head_after(1:len,2:4)]);title('acc head');
+    plot(acc_head_after(1:len,2:4),'-b');
+    subplot(5,4,5);plot([acc_head_before(1:len,2:4) - acc_head_after(1:len,2:4)]);title('acc head');
     
     acc_carrier_before = load(strcat(inputDir,sprintf('cur_acc_carrier_%d.txt',jid)));
     acc_carrier_after = load(strcat(inputDir,sprintf('updated_acc_carrier_%d.txt',jid)));
     len = min([size(acc_carrier_before, 1) size(acc_carrier_after, 1)]);
-    figure,subplot(2,1,1);plot([acc_carrier_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(acc_carrier_after(1:len,2:4),'-b');subplot(2,1,2);plot([acc_carrier_before(1:len,2:4) - acc_carrier_after(1:len,2:4)]);title('acc carrier');
+    subplot(5,4,2);plot([acc_carrier_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(acc_carrier_after(1:len,2:4),'-b');subplot(5,4,6);plot([acc_carrier_before(1:len,2:4) - acc_carrier_after(1:len,2:4)]);title('acc carrier');
     
     
     gyro_head_before = load(strcat(inputDir,sprintf('cur_gyro_head_%d.txt',jid)));
     gyro_head_after = load(strcat(inputDir,sprintf('updated_gyro_head_%d.txt',jid)));
     len = min([size(gyro_head_before, 1) size(gyro_head_after, 1)]);
-    figure,subplot(2,1,1);plot([gyro_head_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(gyro_head_after(1:len,2:4),'-b');subplot(2,1,2);plot([gyro_head_before(1:len,2:4) - gyro_head_after(1:len,2:4)]);title('gyro head');
+    subplot(5,4,3);plot([gyro_head_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(gyro_head_after(1:len,2:4),'-b');subplot(5,4,7);plot([gyro_head_before(1:len,2:4) - gyro_head_after(1:len,2:4)]);title('gyro head');
     
     
     gyro_carrier_before = load(strcat(inputDir,sprintf('cur_gyro_carrier_%d.txt',jid)));
     gyro_carrier_after = load(strcat(inputDir,sprintf('updated_gyro_carrier_%d.txt',jid)));
     len = min([size(gyro_carrier_before, 1) size(gyro_carrier_after, 1)]);
-    figure,subplot(2,1,1);plot([gyro_carrier_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(gyro_carrier_after(1:len,2:4),'-b');subplot(2,1,2);plot([gyro_carrier_before(1:len,2:4) - gyro_carrier_after(1:len,2:4)]);title('gyro carrier');
+    subplot(5,4,4);plot([gyro_carrier_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(gyro_carrier_after(1:len,2:4),'-b');subplot(5,4,8);plot([gyro_carrier_before(1:len,2:4) - gyro_carrier_after(1:len,2:4)]);title('gyro carrier');
     
     
     aa_head = load(strcat(inputDir,sprintf('updated_aa_head_%d.txt',jid)));
     aw_head = load(strcat(inputDir,sprintf('updated_aw_head_%d.txt',jid)));
     aa_carrier = load(strcat(inputDir,sprintf('updated_aa_carrier_%d.txt',jid)));
     aw_carrier = load(strcat(inputDir,sprintf('updated_aw_carrier_%d.txt',jid)));
-    figure,subplot(2,2,1);plot([aa_head(:,2:4)]);title('aa head');subplot(2,2,2);plot([aw_head(:,2:4)]);title('aw head');
-    subplot(2,2,3);plot([aa_carrier(:,2:4)]);title('aa carrier');subplot(2,2,4);plot([aw_carrier(:,2:4)]);title('aw carrier');
-    
-    
-    
+    subplot(5,4,9);plot([aa_head(:,2:4)]);title('aa head');subplot(5,4,11);plot([aw_head(:,2:4)]);title('aw head');
+    subplot(5,4,10);plot([aa_carrier(:,2:4)]);title('aa carrier');subplot(5,4,12);plot([aw_carrier(:,2:4)]);title('aw carrier');
     
     
     err_pvr = load(strcat(inputDir,sprintf('err_pvr_%d.txt',jid)));
+    subplot(5,4,16);plot(err_pvr(:,11:13));title('err gyro carrier');
+    subplot(5,4,15);plot(err_pvr(:,14:16));title('err gyro head');
+    subplot(5,4,14);plot(err_pvr(:,17:19));title('err acc carrier');
+    subplot(5,4,13);plot(err_pvr(:,20:22));title('err acc head');
+    
+    subplot(5,4,17);plot(300 * diff(acc_head_before(:,2:4)));title('acc head diff');
+    subplot(5,4,18);plot(300 * diff(acc_carrier_before(:,2:4)));title('acc carrier diff');
+    subplot(5,4,19);plot(300 * diff(gyro_head_before(:,2:4)));title('gyro head diff');
+    subplot(5,4,20);plot(300 * diff(gyro_carrier_before(:,2:4)));title('gyro carrier diff');
+    
+    
+    
     figure,subplot(4,1,1);plot(err_pvr(:,2:4));title('err p');
     subplot(4,1,2);plot(err_pvr(:,5:7));title('err v');
     subplot(4,1,3);plot(err_pvr(:,8:10));title('err r (rad)');
@@ -125,10 +145,7 @@ for jid = 0 %: 1
     subplot(3,4,12);plot(dx_pvr(:,26:28));title('dabg2');
     
     
-    figure,subplot(2,2,1);plot(err_pvr(:,11:13));title('err gyro carrier');
-    subplot(2,2,2);plot(err_pvr(:,14:16));title('err gyro head');
-    subplot(2,2,3);plot(err_pvr(:,17:19));title('err acc carrier');
-    subplot(2,2,4);plot(err_pvr(:,20:22));title('err acc head');
+    
     
     
     pose_diff = load(strcat(inputDir,sprintf('pose_diff_%d.txt',jid)));
@@ -172,5 +189,20 @@ if 0
     subplot(4,1,2),hist(a(:,2:14), 20);legend('all','prep','ProvideAllImus', 'GetPrediction2','front end','feed vm to estimator','orca','lba','marg','OptBatch','imu graph','append','trim');
     subplot(4,1,3),hist(a(:,[8 9 12 13 14]), 100);legend('orca(ms)','lba','imu graph','append','trim');
     subplot(4,1,4),plot(a(:,[8 9 12 13 14]));legend('orca(ms)','lba','imu graph','append','trim');
+end
+end
+function poseMat = GetPoseMat(data)
+
+poseMat = [];
+Twc_stack = {};
+for i = 1 : size(data,1)
+    data1 = data(i,:);
+    xyzw = data1(5:8);
+    trans = data1(2:4);
+    R = quat2rotm(xyzw([4 1 2 3]));
+    rot = rodrigues(R);
+%     poseMat = [poseMat; [data1(1) reshape(R,1,9), trans]];
+    poseMat = [poseMat; [data1(1) rot(1) rot(2) rot(3)]];
+    Twc_stack{i,1} = [R trans';0 0 0 1];
 end
 end

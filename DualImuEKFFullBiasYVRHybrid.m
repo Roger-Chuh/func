@@ -13,9 +13,9 @@ disable_jerk = false;
 err_dim = 21;9; 21;27;
 iter_max = 2;
 reset_cov = true;
-check_F = false;true;false;
+check_F = true;false;true;false;
 
-inverse_pose = false;
+inverse_pose = true;false;
 
 ignore_aw_in_err = false;
 ignore_aa_in_err = false;
@@ -87,7 +87,7 @@ aa_carrier_rand = zeros(3,1);
 state0_head = eye(6);
 state0_carrier = eye(6);
 state_cur_relative = eye(6);
-imu_dt = 1e-3;
+imu_dt = 3 * 1e-3;
 gravity = [-9.7964, 0, 0]';
 relative_pose_stack = [];
 head_pose_stack = [];
@@ -251,7 +251,7 @@ for i = 1 : size(head_imu,1)-1
         w_carrier_next  = carrier_imu(i+1, 2:4)';
         w_carrier_cur_next = carrier_imu(i+1, 2:4)';
         a_carrier_next = carrier_imu(i+1, 5:7)';
-        err = ProcessOnce(relative_pose_mat_stack{i+1,1}(1:3, 6),(relative_pose_mat_stack_exact{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)',  carrier_imu(i+1, 2:4)');
+        err = ProcessOnce(relative_pose_mat_stack{i+1,1}(1:3, 6),relative_pose_mat_stack_exact{i+1,1}, head_imu(i, 2:4)', head_imu(i, 5:7)', carrier_imu(i, 2:4)', carrier_imu(i, 5:7)',  carrier_imu(i+1, 2:4)');
         Err = [Err; err'];
     end
     
@@ -403,15 +403,25 @@ if real_run
         [F, G] = computeDualCovYVRFull(w_carrier, cur_w_head + bg_head, a_carrier, cur_a_head + ba_head, p, v, R);
         
         if check_F
-            [state_pred_wo_err, err_pvq0] = progagateStateYVR(zeros(33,1), p, v, R, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
+            R_test = rodrigues(rand(3,1));
+            p_test = rand(3,1);
+            v_test = rand(3,1);
+            aw_carrier_test = rand(3,1);
+            [F_test, G_test] = computeDualCovYVRFullJerkOnlyHybrid(imu_dt, w_carrier, w_head, a_carrier, a_head, p_test, v_test, R_test, aw_carrier_test);
+%             [state_pred_wo_err, err_pvq0] = progagateStateYVR(zeros(33,1), p_test, v_test, R_test, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
+%                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
+            [state_pred_wo_err, err_pvq0] = progagateStateYVRJerkOnlyHybrid(zeros(33,1), p_test, v_test, R_test, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
+            
             err_vec0 = 0.001 * ones(33, 1);
-            err_vec1 = F * err_vec0;
-            [state_pred_w_err, err_pvq1] = progagateStateYVR(err_vec0, p, v, R, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, cur_state(1:3,4),cur_state(1:3,6),(cur_state(1:3,1:3)),...
+            err_vec0(16:21) = zeros(6,1);
+            err_vec1 = F_test * err_vec0;
+%             [state_pred_w_err, err_pvq1] = progagateStateYVR(err_vec0, p_test, v_test, R_test, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, state_pred_wo_err(1:3),state_pred_wo_err(4:6),rodrigues(state_pred_wo_err(7:9)),...
+%                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
+            [state_pred_w_err, err_pvq1] = progagateStateYVRJerkOnlyHybrid(err_vec0, p_test, v_test, R_test, ba_head, bg_head, a_carrier, w_carrier, aw_carrier, aw_head, aa_carrier, aa_head, state_pred_wo_err(1:3),state_pred_wo_err(4:6),rodrigues(state_pred_wo_err(7:9)),...
                 cur_w_carrier, cur_a_carrier, cur_w_head, cur_a_head, cur_w_carrier_next);
-            
-            
-            err_vec11 = F(1:12,:) * err_vec0;
+
+            err_vec11 = F_test(1:12,:) * err_vec0;
             err_check0 = err_vec11 - err_pvq1(1:12);
             err_check = err_vec1 - err_pvq1;
         end
@@ -648,6 +658,88 @@ a_carrier0 = a_carrier00 + err_vec0(10:12) + imu_dt * err_vec0(28:30);
 w_carrier0 = w_carrier00 + err_vec0(13:15) + imu_dt * err_vec0(22:24);
 ba_head0 = ba_head00 + err_vec0(16:18) + imu_dt * err_vec0(31:33);
 bg_head0 = bg_head00 + err_vec0(19:21) + imu_dt * err_vec0(25:27);
+aw_carrier0 = aw_carrier00 + err_vec0(22:24);
+aw_head0 = aw_head00 + err_vec0(25:27);
+aa_carrier0 = aw_carrier00 + err_vec0(28:30);
+aa_head0 = aw_head00 + err_vec0(31:33);
+
+w_carrier_new = (w_carrier0) + aw_carrier0 * imu_dt;
+% w_carrier_cur_new = (w_carrier_meas + bg_carrier0) + 2 * aw_carrier0 * imu_dt;
+
+w_carrier_dt = (w_carrier0) * imu_dt + 0.5 * aw_carrier0 * imu_dt^2;
+w_head_dt = (w_head_meas + bg_head0) * imu_dt + 0.5 * aw_head0 * imu_dt^2;
+if 0
+    p2_est = rodrigues(-w_carrier_dt) * ((eye(3) + SkewSymMat(w_carrier_dt)) * p0 + imu_dt * v0 + 0.5 * imu_dt^2 * (R0 * (a_head_meas + ba_head0) - (a_carrier_meas + ba_carrier0)));
+    v2_est = rodrigues(-w_carrier_dt) * (v0 + SkewSymMat(w_carrier_new) * p0 + (R0 * (a_head_meas + ba_head0) - (a_carrier_meas + ba_carrier0)) * imu_dt) - SkewSymMat(w_carrier_cur_new) * p2_est;
+    R2_est = rodrigues(-w_carrier_dt) * R0 * rodrigues(w_head_dt);
+else
+    J3_head = 0.5 * imu_dt^2 * (a_head_meas + ba_head0) + 1/6 * aa_head0 * imu_dt^3;
+    J2_head = imu_dt * (a_head_meas + ba_head0) + 0.5 * aa_head0 * imu_dt^2;
+    J1_head = rodrigues(w_head_dt);
+    
+    J3_carrier = 0.5 * imu_dt^2 * (a_carrier0) + 1/6 * aa_carrier0 * imu_dt^3;
+    J2_carrier = imu_dt * (a_carrier0) + 0.5 * aa_carrier0 * imu_dt^2;
+    J1_carrier = rodrigues(w_carrier_dt);
+    
+    if inverse_pose
+        R1_temp = R0';
+        p1_temp = -R0' * p0;
+        v1_temp = -R0' * v0;
+    else
+        R1_temp = R0;
+        p1_temp = p0;
+        v1_temp = v0;
+    end
+    if inverse_pose
+        R2_est_temp = J1_head' * R1_temp * J1_carrier;
+        v2_est_temp = J1_head' * (v1_temp + R1_temp * J2_carrier - J2_head);
+        p2_est_temp = J1_head' * (p1_temp + v1_temp * imu_dt + R1_temp * J3_carrier - J3_head);
+    else
+        R2_est_temp = J1_carrier' * R1_temp * J1_head;
+        v2_est_temp = J1_carrier' * (v1_temp + R1_temp * J2_head - J2_carrier);
+        p2_est_temp = J1_carrier' * (p1_temp + v1_temp * imu_dt + R1_temp * J3_head - J3_carrier);
+    end
+    if inverse_pose
+        R2_est = R2_est_temp';
+        p2_est = -R2_est_temp' * p2_est_temp;
+        v2_est = -R2_est_temp' * v2_est_temp;
+    else
+        R2_est = R2_est_temp;
+        p2_est = p2_est_temp;
+        v2_est = v2_est_temp;
+    end
+    
+end
+err_p = p2_est - p1;
+err_v = v2_est - v1;
+err_R = rodrigues(R1' * R2_est);
+err_a_carrier = a_carrier0 - a_carrier00;
+err_w_carrier = w_carrier0 - w_carrier00;
+err_ba_head = ba_head0 - ba_head00;
+err_bg_head = bg_head0 - bg_head00;
+err_aw_carrier = aw_carrier0  - aw_carrier00;
+err_aw_head = aw_head0 - aw_head00;
+err_aa_carrier = aa_carrier0  - aa_carrier00;
+err_aa_head = aa_head0 - aa_head00;
+
+state1 = [p2_est; v2_est; rodrigues(R2_est);];
+err_pvq = [err_p; err_v; err_R; err_a_carrier; err_w_carrier; err_ba_head; err_bg_head; err_aw_carrier; err_aw_head; err_aa_carrier; err_aa_head];
+end
+function [state1, err_pvq] = progagateStateYVRJerkOnlyHybrid(err_vec0, p0, v0, R0, ba_head00, bg_head00, a_carrier00, w_carrier00, aw_carrier00, aw_head00, aa_carrier00, aa_head00, p1, v1, R1,...
+    w_carrier_meas, a_carrier_meas, w_head_meas, a_head_meas, w_carrier_next_meas)
+global imu_dt w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next inverse_pose
+
+p0 = p0 + err_vec0(1:3);
+v0 = v0 + err_vec0(4:6);
+if 1
+    R0 = R0 * rodrigues(err_vec0(7:9));
+else
+    R0 = rodrigues(rodrigues(R0) + err_vec0(7:9));
+end
+a_carrier0 = a_carrier00 + err_vec0(10:12) + imu_dt * err_vec0(28:30);
+w_carrier0 = w_carrier00 + err_vec0(13:15) + imu_dt * err_vec0(22:24);
+ba_head0 = ba_head00;% + err_vec0(16:18) + imu_dt * err_vec0(31:33);
+bg_head0 = bg_head00;% + err_vec0(19:21) + imu_dt * err_vec0(25:27);
 aw_carrier0 = aw_carrier00 + err_vec0(22:24);
 aw_head0 = aw_head00 + err_vec0(25:27);
 aa_carrier0 = aw_carrier00 + err_vec0(28:30);
@@ -1069,6 +1161,8 @@ A(:,16:18) = -A(:,16:18);
 A(:,19:21) = -A(:,19:21);
 
 
+A_check = makeAOrig(true, zeros(3,1),a1,a2,w1,w2,R12,p12,v12);
+
 F = expm(A * imu_dt);
 
 
@@ -1102,6 +1196,71 @@ else
     G(28:30, 19:21) = eye(3);
     G(31:33, 22:24) = eye(3);
 end
+end
+function A = makeAOrig(use_jerk, aw1,a1,a2,w1,w2,R12,p12,v12)
+global imu_dt;
+state_pose_start_index = 0;
+state_vel_start_index = 3;
+state_rot_start_index = 6;
+
+state_ba1_start_index = 9;
+state_bg1_start_index = 12;
+state_ba2_start_index = 15;
+state_bg2_start_index = 18;
+
+state_aw1_start_index = 21;
+state_aw2_start_index = 24;
+state_aa1_start_index = 27;
+state_aa2_start_index = 30;
+
+
+
+
+A = zeros(33,33);
+% // state err p
+A(state_pose_start_index+1:state_pose_start_index+3, state_pose_start_index+1:state_pose_start_index+3) = -SkewSymMat(w1);
+A(state_pose_start_index+1:state_pose_start_index+3, state_vel_start_index+1:state_vel_start_index+3) = eye(3);
+A(state_pose_start_index+1:state_pose_start_index+3, state_bg1_start_index+1:state_bg1_start_index+3) = -SkewSymMat(p12);
+
+%     // state err v
+A(state_vel_start_index+1:state_vel_start_index+3, state_vel_start_index+1:state_vel_start_index+3) = -SkewSymMat(w1);
+A(state_vel_start_index+1:state_vel_start_index+3, state_rot_start_index+1:state_rot_start_index+3) = -R12 * SkewSymMat(a2);
+A(state_vel_start_index+1:state_vel_start_index+3, state_ba1_start_index+1:state_ba1_start_index+3) = eye(3);
+A(state_vel_start_index+1:state_vel_start_index+3, state_bg1_start_index+1:state_bg1_start_index+3) = -SkewSymMat(v12);
+A(state_vel_start_index+1:state_vel_start_index+3, state_ba2_start_index+1:state_ba2_start_index+3) = -R12;
+
+%     // state err R
+A(state_rot_start_index+1:state_rot_start_index+3, state_rot_start_index+1:state_rot_start_index+3) = -SkewSymMat(w2);
+A(state_rot_start_index+1:state_rot_start_index+3, state_bg1_start_index+1:state_bg1_start_index+3) = R12';
+A(state_rot_start_index+1:state_rot_start_index+3, state_bg2_start_index+1:state_bg2_start_index+3) = -eye(3);
+
+A(state_bg1_start_index+1:state_bg1_start_index+3, state_aw1_start_index+1:state_aw1_start_index+3) = eye(3);
+A(state_bg2_start_index+1:state_bg2_start_index+3, state_aw2_start_index+1:state_aw2_start_index+3) = eye(3);
+A(state_ba1_start_index+1:state_ba1_start_index+3, state_aa1_start_index+1:state_aa1_start_index+3) = eye(3);
+A(state_ba2_start_index+1:state_ba2_start_index+3, state_aa2_start_index+1:state_aa2_start_index+3) = eye(3);
+
+
+% a1 w1 a2 w2
+A(:,10:21) = -A(:,10:21);
+
+end
+function [F, G] = computeDualCovYVRFullJerkOnlyHybrid(imu_dt, w1, w2, a1, a2, p12, v12, R12, aw1)
+% global imu_dt;
+G = [];
+A_orig = makeAOrig(true, aw1,a1,a2,w1,w2,R12,p12,v12);
+
+
+A_orig(16:21,:) = zeros(6, 33);
+
+% A_orig(:,22:24) = A_orig(:,22:24) + A_orig(:,13:15) * imu_dt;
+A_orig(:,25:27) = A_orig(:,25:27) + A_orig(:,19:21) * imu_dt;
+% A_orig(:,28:30) = A_orig(:,28:30) + A_orig(:,10:12) * imu_dt;
+A_orig(:,31:33) = A_orig(:,31:33) + A_orig(:,16:18) * imu_dt;
+% A_orig(:,13:15) = zeros(33,3);
+A_orig(:,19:21) = zeros(33,3);
+% A_orig(:,10:12) = zeros(33,3);
+A_orig(:,16:18) = zeros(33,3);
+F = expm(A_orig * imu_dt);
 end
 function [F, G] = computeDualCov(w1, w2, a1, a2, p12, v12, R12, aw1)
 global imu_dt real_run disable_jerk

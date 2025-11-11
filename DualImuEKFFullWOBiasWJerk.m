@@ -1,4 +1,4 @@
-function DualImuEKFFullWOBias()
+function DualImuEKFFullWOBiasWJerk()
 global R v p w_head a_head w_carrier w_carrier_cur a_carrier imu_dt use_exact_vel cov aa_head aw_head  aa_carrier aw_carrier real_run Q R_ add_noise_state add_noise_obs ...
     disable_jerk w_head_next a_head_next w_carrier_next w_carrier_cur_next a_carrier_next  aw_carrier_rand aw_head_rand err_dim reset_cov ignore_aw_in_err...
     noise_dim state_dim
@@ -686,8 +686,8 @@ G_(state_aw2_start_index+1:state_aw2_start_index+3, noise_aw2_start_index+1:nois
 end
 function [F, G] = computeDualCov(w1, w2, a1, a2, p12, v12, R12, aw1)
 global imu_dt real_run disable_jerk noise_dim
-A = makeA(false, aw1,a1,a2,w1,w2,R12,p12,v12);
-A = A(1:27, 1:27);
+A = makeA(true, aw1,a1,a2,w1,w2,R12,p12,v12);
+% A = A(1:27, 1:27);
 F = expm(A * imu_dt);
 F(10:12,1:27) = zeros(3,27);
 F(1:27,10:12) = zeros(3,27)';
