@@ -1,7 +1,7 @@
 function testMergePreint()
 global dt
 
-dt = 0.001;
+dt = 0.003;
 acc1 = rand(3, 100);
 acc2 = rand(3, 100);
 gyro1 = rand(3, 50);
@@ -15,6 +15,7 @@ gyro3 = [gyro1 gyro2];
 
 
 J2_3_check = J2_1 + J1_1 * J2_2;
+J2_diff = J2_3_check - J2_3;
 
 J3_3_check = J3_1 + J2_1 * ((size(gyro2,2) + 0) * dt) + J1_1 * (J3_2 + J2_2 * ((size(gyro2,2) + 0) * dt));
 J3_diff = J3_3_check - J3_3;

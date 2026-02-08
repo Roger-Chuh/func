@@ -8,10 +8,42 @@ inputDir = '\\192.168.9.225\original_hand_dataset\zrj\';
 
 inputDir = 'G:\matlab\data\direct\gt\D2_011\4\tbc\ekf\Download\shared\';
 
-for jid = 1 %: 1
+
+
+w_mean = [0.0001 : 0.0001 : 0.8];a = 0.0;k = 0.2;scale = 1-(1-a) * exp(-k .* w_mean);figure,plot(w_mean, scale);
+
+for jid = 0 : 1
+    if 0
+    a = load(fullfile(inputDir, sprintf('gyro_data_%d.txt', jid)));
     
+    imu_window_size = 10;
+    gyro_data_filtered = FilterData((a(:,2:4)), imu_window_size);
+    gyro_data_variance = FilterDataVariance(a(:,2:4), imu_window_size);
+    acc_data_filtered = FilterData((a(:,5:7)), imu_window_size);
+    acc_data_variance = FilterDataVariance(a(:,5:7), imu_window_size);
+    vel_data_filtered = FilterData((a(:,8:10)), imu_window_size);
+    vel_data_variance = FilterDataVariance(a(:,8:10), imu_window_size);
+    [~,gyro_raw_norm] = NormalizeVector((a(:,2:4)));
+    [~,acc_raw_norm] = NormalizeVector((a(:,5:7)));
+    [~,vel_raw_norm] = NormalizeVector((a(:,8:10)));
+    [~,gyro_filtered_norm] = NormalizeVector(gyro_data_filtered);
+    [~,gyro_variance_norm] = NormalizeVector(gyro_data_variance);
+    [~,acc_filtered_norm] = NormalizeVector(acc_data_filtered);
+    [~,acc_variance_norm] = NormalizeVector(acc_data_variance);
+    [~,vel_filtered_norm] = NormalizeVector(vel_data_filtered);
+    [~,vel_variance_norm] = NormalizeVector(vel_data_variance);
+    
+%     [~,gyro_pc_filtered_norm] = NormalizeVector(a(:,5:7));
+    
+    figure,subplot(3,1,1),plot(gyro_raw_norm,'-r');hold on;plot(gyro_filtered_norm,'-b');plot(gyro_variance_norm,'-g');legend('raw','filtered','variance');title('gyro data');
+           subplot(3,1,2),plot(acc_raw_norm,'-r');hold on;plot(acc_filtered_norm,'-b');plot(acc_variance_norm,'-g');legend('raw','filtered','variance');title('acc data');
+           subplot(3,1,3),plot(vel_raw_norm,'-r');hold on;plot(vel_filtered_norm,'-b');plot(vel_variance_norm,'-g');legend('raw','filtered','variance');title('vel data');
+    end
+
     aa = load(strcat(inputDir,sprintf('delayed_time_%d.txt', jid)));
-    figure,subplot(3,2,[1 2]),plot([aa(:,2) [-aa(:,3)] [-aa(:,2) - aa(:,3)] [-aa(:,3) + aa(:,2) + aa(:,3)]]);legend('head - carrier','head - img','carrier - img', 'head - carrier');
+    a = abs([-aa(:,2) - aa(:,3)]);
+    index = a < 1000;
+    figure,subplot(3,2,[1 2]),plot([aa(index,2) [-aa(index,3)] [-aa(index,2) - aa(index,3)] [-aa(index,3) + aa(index,2) + aa(index,3)] ones(sum(index), 1)]);legend('head - carrier','head - img','carrier - img', 'head - carrier','zero');
     
     %     bb = load(strcat(inputDir,'diff_in_dt.txt'));
     %     figure,plot(bb * 1000)
@@ -20,8 +52,8 @@ for jid = 1 %: 1
     bg_head = load(strcat(inputDir,sprintf('bg_%d.txt', jid)));
     ba_carrier = load(strcat(inputDir,sprintf('ba_carrier_%d.txt', jid)));
     bg_carrier = load(strcat(inputDir,sprintf('bg_carrier_%d.txt', jid)));
-    subplot(3,2,3);plot(bg_head(:,2:4));title('bg head');subplot(3,2,4);plot(ba_head(:,2:4));title('ba head');
-    subplot(3,2,5);plot(bg_carrier(:,2:4));title('bg carrier');subplot(3,2,6);plot(ba_carrier(:,2:4));title('ba carrier');
+    subplot(3,2,3);plot(bg_head(:,1), bg_head(:,2:4),'x-');title('bg head');subplot(3,2,4);plot(ba_head(:,1),ba_head(:,2:4),'x-');title('ba head');
+    subplot(3,2,5);plot(bg_carrier(:,1),bg_carrier(:,2:4),'x-');title('bg carrier');subplot(3,2,6);plot(ba_carrier(:,1),ba_carrier(:,2:4),'x-');title('ba carrier');
     
     zupt = load(strcat(inputDir,sprintf('use_zupt_%d.txt',jid)));
     try
@@ -39,12 +71,13 @@ for jid = 1 %: 1
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');legend('predict','hf','ekf');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');
         % figure;hold on;plot(a(:,1),[a(:,2:4)],'-r');plot(b(:,1),[b(:,2:4)],'-b');plot(c(:,1),[c(:,2:4)],'-g');legend('predict','hf','ekf')
         
-        figure;subplot(3,1,1),hold on;plot(b(:,1),[b(:,2)],'-b');plot(b(:,1),[b(:,3)],'-b');plot(b(:,1),[b(:,4)],'-b');
+        figure;subplot(4,1,1),hold on;plot(b(:,1),[b(:,2)],'-b');plot(b(:,1),[b(:,3)],'-b');plot(b(:,1),[b(:,4)],'-b');
         plot(a(:,1),[a(:,2)],'-r');plot(a(:,1),[a(:,3)],'-r');plot(a(:,1),[a(:,4)],'-r');
         plot(c(:,1),[c(:,2)],'-g');plot(c(:,1),[c(:,3)],'-g');plot(c(:,1),[c(:,4)],'-g');
         legend('hf','hf','hf', 'predict','predict','predict', 'ekf','ekf','ekf');
-        subplot(3,1,2);hold on;plot(d(2:end,1), 10 .* update_intervals,'-g');plot(d(:,1), d(:, 2:4),'-r');plot(b(:,1), b(:, 2:4),'-b');legend('lf update','lf','lf','lf','hf inte','hf inte','hf inte');
-        subplot(3,1,3),hold on;plot(bb(:,1),[bb(:,2)],'-b');plot(bb(:,1),[bb(:,3)],'-b');plot(bb(:,1),[bb(:,4)],'-b');
+        subplot(4,1,2);hold on;plot(d(:,1), d(:, 2:4),'-r');plot(b(:,1), b(:, 2:4),'-b');legend('lf','lf','lf','hf inte','hf inte','hf inte');
+        subplot(4,1,3);hold on;plot(d(2:end,1), 10 .* update_intervals,'-g');legend('lf update');
+        subplot(4,1,4),hold on;plot(bb(:,1),[bb(:,2)],'-b');plot(bb(:,1),[bb(:,3)],'-b');plot(bb(:,1),[bb(:,4)],'-b');
         plot(aa(:,1),[aa(:,2)],'-r');plot(aa(:,1),[aa(:,3)],'-r');plot(aa(:,1),[aa(:,4)],'-r');
         plot(cc(:,1),[cc(:,2)],'-g');plot(cc(:,1),[cc(:,3)],'-g');plot(cc(:,1),[c(:,4)],'-g');
         legend('hf','hf','hf', 'predict','predict','predict', 'ekf','ekf','ekf');
@@ -55,7 +88,7 @@ for jid = 1 %: 1
     trans_before = load(strcat(inputDir,sprintf('cur_trans_%d.txt',jid)));
     trans_after = load(strcat(inputDir,sprintf('updated_trans_%d.txt',jid)));
     len = min([size(trans_before, 1) size(trans_after, 1)]);
-    figure,subplot(7,1,1);plot([trans_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(trans_after(1:len,2:4),'-b');subplot(7,1,2);plot([trans_before(1:len,2:4) - trans_after(1:len,2:4)]);title('trans');
+    figure,subplot(3,3,1);plot([trans_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(trans_after(1:len,2:4),'-b');subplot(3,3,4);plot([trans_before(1:len,2:4) - trans_after(1:len,2:4)]);title('trans');
     
     
     rot_before = load(strcat(inputDir,sprintf('cur_rot_%d.txt',jid)));
@@ -68,13 +101,13 @@ for jid = 1 %: 1
         err_rot_vec_diff = [err_rot_vec_diff;[rodrigues(rodrigues(rot_before(id,2:4)) * rodrigues(rot_after(id,2:4))')]'];
     end
     %     figure,subplot(2,1,1);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(2,1,2);plot([rot_before(1:len,2:4) - rot_after(1:len,2:4)]);title('rot');
-    subplot(7,1,3);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(7,1,4);plot(err_rot);title('rot (rad)');subplot(7,1,5);plot(err_rot_vec_diff);title('rot vec diff (rad)');
+    subplot(3,3,2);plot([rot_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(rot_after(1:len,2:4),'-b');subplot(3,3,5);plot(err_rot);title('rot (rad)');subplot(3,3,8);plot(err_rot_vec_diff);title('rot vec diff (rad)');
     
     
     vel_before = load(strcat(inputDir,sprintf('cur_v_%d.txt',jid)));
     vel_after = load(strcat(inputDir,sprintf('updated_v_%d.txt',jid)));
     len = min([size(vel_before, 1) size(vel_after, 1)]);
-    subplot(7,1,6);plot([vel_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(vel_after(1:len,2:4),'-b');subplot(7,1,7);plot([vel_before(1:len,2:4) - vel_after(1:len,2:4)]);title('vel');
+    subplot(3,3,3);plot([vel_before(1:len,2:4)],'-r','LineWidth', 2);hold on;plot(vel_after(1:len,2:4),'-b');subplot(3,3,6);plot([vel_before(1:len,2:4) - vel_after(1:len,2:4)]);title('vel');
     
     
     acc_head_before = load(strcat(inputDir,sprintf('cur_acc_head_%d.txt',jid)));
@@ -149,28 +182,62 @@ for jid = 1 %: 1
     
     
     pose_diff = load(strcat(inputDir,sprintf('pose_diff_%d.txt',jid)));
-    figure, subplot(4,1,1);plot(pose_diff(:,2:4));title(sprintf('rot diff'));
-    subplot(4,1,2);plot(pose_diff(:,5:7));title(sprintf('trans diff'));
-    subplot(4,1,3);plot(pose_diff(:,8:9));legend('old reproj','new reproj');
-    subplot(4,1,4);plot(pose_diff(:,10));title('vm num');
+    figure, subplot(4,1,1);plot(pose_diff(:,1), pose_diff(:,2:4));title(sprintf('rot diff'));
+    subplot(4,1,2);plot(pose_diff(:,1), pose_diff(:,5:7));title(sprintf('trans diff'));
+    subplot(4,1,3);plot(pose_diff(:,1), pose_diff(:,8:9));legend('old reproj','new reproj');
+    subplot(4,1,4);plot(pose_diff(:,1), pose_diff(:,10));title('vm num');
     
     a = load(fullfile(inputDir, sprintf('lba_info_%d.txt', jid)));
     idx1 = find(a(:,2) == 0);
     idx2 = find(a(:,2) == 1);
     [timestamps, x, y] = unique(a(:,1));
     iter = x - 1;
-    figure,subplot(5,2,1),plot(a(idx1, [4:6]));legend('prior','reproj','trifocal');title('iter 0');
-    subplot(5,2,2),plot(a(idx2, [3 4 6 7]));legend('imu','prior','reproj','trifocal');title('iter n');
-    subplot(5,2,3),plot(a(idx1, [5]));title('iter 0 reproj, all mean');
+    figure,subplot(5,2,1),plot(a(idx1,1), a(idx1, [4:6]));legend('prior','reproj','trifocal');title('iter 0');
+    subplot(5,2,2),plot(a(idx2,1), a(idx2, [3 4 6 7]));legend('imu','prior','reproj','trifocal');title('iter n');
+    subplot(5,2,3),plot(a(idx1,1), a(idx1, [5]));title('iter 0 reproj, all mean');
     subplot(5,2,4),hist(a(idx1, [5]), 30);title('iter 0 reproj, all mean');
-    subplot(5,2,5),plot(a(idx1, [8]));title('iter 0 reproj, cur mean');
-    subplot(5,2,6),hist(a(idx1, [8]), 30);title('iter 0 reproj, cur mean');
-    subplot(5,2,7),plot(a(idx2, [8]));title('iter n reproj, cur mean');
+    subplot(5,2,5),plot(a(idx1,1), a(idx1, [8]));title('iter 0 reproj, cur mean');
+    subplot(5,2,6),hist( a(idx1, [8]), 30);title('iter 0 reproj, cur mean');
+    subplot(5,2,7),plot(a(idx2,1), a(idx2, [8]));title('iter n reproj, cur mean');
     subplot(5,2,8),hist(a(idx2, [8]), 30);title('iter n reproj, cur mean');
-    subplot(5,2,9),plot(a(iter(3:end),2) + 1);title('iter num');
+    subplot(5,2,9),plot(a(iter(3:end), 1), a(iter(3:end),2) + 1);title('iter num');
+    
+    window_size = 50;
+    
+    w_filtered = FilterData(gyro_carrier_after(:,2:4), window_size);
+    vel_filtered = FilterData(vel_after(:,2:4), window_size);
+    
+    w_filtered_variance = FilterDataVariance(gyro_carrier_after(:,2:4), window_size);
+    vel_filtered_variance = FilterDataVariance(vel_after(:,2:4), window_size);
+    try
+        [~,w_norm] = NormalizeVector(w_filtered);
+        [~,vel_norm] = NormalizeVector(vel_filtered);
+        [~,w_norm_variance] = NormalizeVector(w_filtered_variance);
+        [~,vel_norm_variance] = NormalizeVector(vel_filtered_variance);
+        figure,subplot(2,2,1);plot(w_norm);title('w filtered');
+        subplot(2,2,2);plot(vel_norm);title('vel filtered');
+        subplot(2,2,3);plot(w_norm_variance);title('w filtered variance');
+        subplot(2,2,4);plot(vel_norm_variance);title('vel filtered variance');
+    catch
+        fprintf('no enough data to filter\n');
+    end
+    
+    a = load(fullfile(inputDir, sprintf('Tjxyz_info_%d.txt', jid)));
+    figure,subplot(2,1,1);plot(rad2deg(a(:,2:4)),'-b');hold on;plot(rad2deg(a(:,8:10)),'-r');title('rot(deg)');
+    subplot(2,1,2);plot(1000 .* a(:,5:7),'-b');hold on;plot(1000 .* a(:,11:13),'-r');title('trans(mm)');
+    
+    a = load(strcat(inputDir,sprintf('hf_inte_output_%d.txt',jid)));
+    b = load(strcat(inputDir,sprintf('output_%d.txt',jid)));
+    
     
 end
-if 0
+if 1
+    
+    
+    a = load(strcat(inputDir,sprintf('head_imu_minus_image.txt')));
+    
+    figure,plot(1000 * a(:,2:3));title('head imu minus image (ms)');legend('first', 'second');
+    
     a = load(strcat(inputDir,sprintf('processImgOnce.txt')));
     b = load(strcat(inputDir,sprintf('processImuOnce_2.txt')));
     c = load(strcat(inputDir,sprintf('processImuOnce_0.txt')));
@@ -191,6 +258,33 @@ if 0
     subplot(4,1,4),plot(a(:,[8 9 12 13 14]));legend('orca(ms)','lba','imu graph','append','trim');
 end
 end
+function w_filtered = FilterData(gyro_carrier_after, window)
+
+w_filtered = [];
+for i = window + 1 : size(gyro_carrier_after,1)
+    w_sum = zeros(1,3);
+    for j = i - window : i
+        w_sum = w_sum + abs(gyro_carrier_after(j, 1:3));
+    end
+    w_filtered =[w_filtered; w_sum / (window + 1)];
+end
+end
+function w_filtered = FilterDataVariance(gyro_carrier_after, window)
+
+w_filtered = [];
+for i = window + 1 : size(gyro_carrier_after,1)
+    w_sum = zeros(1,3);
+    for j = i - window : i
+        w_sum = w_sum + (gyro_carrier_after(j, 1:3));
+    end
+    w_mean = w_sum ./ (window + 1);
+    w_sum_square = zeros(1,3);
+    for j = i - window : i
+        w_sum_square = w_sum_square + (gyro_carrier_after(j, 1:3) - w_mean).^2;
+    end
+    w_filtered =[w_filtered; sqrt(w_sum_square / (window + 1))];
+end
+end
 function poseMat = GetPoseMat(data)
 
 poseMat = [];
@@ -201,7 +295,7 @@ for i = 1 : size(data,1)
     trans = data1(2:4);
     R = quat2rotm(xyzw([4 1 2 3]));
     rot = rodrigues(R);
-%     poseMat = [poseMat; [data1(1) reshape(R,1,9), trans]];
+    %     poseMat = [poseMat; [data1(1) reshape(R,1,9), trans]];
     poseMat = [poseMat; [data1(1) rot(1) rot(2) rot(3)]];
     Twc_stack{i,1} = [R trans';0 0 0 1];
 end
