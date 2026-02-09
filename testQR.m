@@ -1,4 +1,8 @@
 function testQR()
+global use_self_made_givens
+use_self_made_givens = true;
+
+
 x = [3;4];
 
 r = norm(x);
@@ -69,9 +73,13 @@ A(:,13:15) = A1;
 A(1:3, 1:6) = reshape([1:18], 6, 3)';
 A(4:6, 7:12) = reshape([19:36], 6, 3)';
 A(1:3, 16) = [46 47 48]';
-[Q, R] = qr(A(:,13:15));
-Q = -Q;
-R = -R;
+if ~use_self_made_givens
+    [Q, R] = qr(A(:,13:15));
+    Q = -Q;
+    R = -R;
+else
+    [Q, ~, R, A_new] = GivensQR(A(:,13:15));
+end
 Q11 = Q(:,1:3);
 Q22 = Q(:,4:9);
 [Q_idp, R_idp] = qr(Jidp);
@@ -80,6 +88,8 @@ R_idp = -R_idp;
 
 check_landmark_r = Q' * A;
 % check
+% check_landmark_r(:,13:15) - A_new
+
 Q11 * R(1:3,:)
 Q * R
 
@@ -90,9 +100,52 @@ res_num = 5;
 pose_num = 1;
 [J_whole, res_whole] = GenJacs(res_num, pose_num);
 end
+function [G_big, Q, R, A] = GivensQR(A)
+G = [];
+Q = [];
+R = A;
+rows = size(R, 1);
+cols = size(R, 2);
 
+assert(rows >= cols);
+
+Gs = {};
+G_big = eye(rows);
+for col = 1 : cols
+    for row = rows : -1 : col+1
+        diag_ele = R(col, col);
+        ele = R(row, col);
+        if ele == 0
+            continue;
+        end
+        G = eye(rows);
+        r = sqrt(diag_ele^2 + ele^2);
+        c = diag_ele / r;
+        s = ele / r;
+        Q = [c -s; s c];
+        R([col row],:) = Q' * R([col row],:);
+        G(col, col) = c;
+        G(col, row) = -s;
+        G(row, col) = s;
+        G(row, row) = c;
+        G_big = G_big * G;
+        Gs = [Gs;G];
+    end
+end
+
+% for i = 1 : length(Gs)
+%     G_big = Gs{i} * G_big;
+% end
+
+% G_big = G_big';
+R_check = G_big' * A;
+R_diff = R_check - R;
+end
+function [Q, R, A] = HouseholderQR(A)
+
+end
 function [J_whole, res_whole] = GenJacs(res_num, pose_num)
-
+global use_self_made_givens
 use_given_pose_num = true;
 if pose_num < 0
     pose_num = res_num+1;
@@ -118,10 +171,13 @@ end
 
 res_whole = J_whole * dx_whole;
 
-
-[Q, R] = qr(J_whole(:,pose_num * 6 + 1));
-Q = -Q;
-R = -R;
+if ~use_self_made_givens
+    [Q, R] = qr(J_whole(:,pose_num * 6 + 1));
+    Q = -Q;
+    R = -R;
+else
+    [Q, ~, R, ~] = GivensQR(J_whole(:,pose_num * 6 + 1));
+end
 
 Q1 = Q(:,1);
 Q2 = Q(:,2:2 * res_num);
@@ -162,7 +218,7 @@ H11 = H_whole(1:pose_num * 6, 1:pose_num * 6) - H_whole(1:pose_num * 6, pose_num
 b1 = b_whole(1:pose_num * 6) - H_whole(1:pose_num * 6, pose_num * 6 + 1) * (1/H_whole(pose_num * 6+1,pose_num * 6+1)) * b_whole(pose_num * 6 + 1);
 H11_lazy = H_whole(1:pose_num * 6, 1:pose_num * 6) - (Q1' * J_whole(:,1: pose_num * 6))' * (Q1' * J_whole(:,1: pose_num * 6));
 b1_lazy = b_whole(1:pose_num * 6) - (Q1' * J_whole(:,1: pose_num * 6))' * (Q1' * res_whole);
-% 重要验证项
+%% 重要验证项
 H11_diff = H11_lazy - H11;
 b1_diff = b1 - b1_lazy;
 
@@ -185,6 +241,7 @@ H11_diff = J_res_once(2:end,1:pose_num * 6)' * J_res_once(2:end,1:pose_num * 6) 
 b1_diff = J_res_once(2:end,1:pose_num * 6)' * J_res_once(2:end,pose_num * 6 + 2) - J_res_accum(2:end,1:pose_num * 6)' * J_res_accum(2:end,pose_num * 6 + 2)
 end
 function J_res_accum = DoQrIncrementally(J_whole, res_whole, use_given_pose_num, res_num, pose_num, method)
+global use_self_made_givens
 if use_given_pose_num
     J_res_accum = [];zeros(1,pose_num * 6 + 1);
     
@@ -192,9 +249,13 @@ end
 for i = 1 : res_num
     J_each = J_whole(2 * i-1:2*i,:);
     res_each = res_whole(2 * i-1:2*i);
-    [Q_each, R_each] = qr(J_each(:,pose_num * 6 + 1));
-    Q_each = -Q_each;
-    R_each = -R_each;
+    if ~use_self_made_givens
+        [Q_each, R_each] = qr(J_each(:,pose_num * 6 + 1));
+        Q_each = -Q_each;
+        R_each = -R_each;
+    else
+        [Q_each,~, R_each, ~] = GivensQR(J_each(:,pose_num * 6 + 1));
+    end
     Q1_each = Q_each(:,1);
     Q2_each = Q_each(:,2:2);
     
@@ -208,9 +269,13 @@ for i = 1 : res_num
             J_res_accum = [J_res_accum; [[Q1t_Jpose_each;Q2t_Jpose_each] R_each] [Q1t_res_each;Q2t_res_each]];
         end
         if size(J_res_accum,1) > 2
-            [Q_accum, R_accum] = qr(J_res_accum(:,pose_num * 6 + 1));
-            Q_accum = -Q_accum;
-            R_accum = -R_accum;
+            if ~use_self_made_givens
+                [Q_accum, R_accum] = qr(J_res_accum(:,pose_num * 6 + 1));
+                Q_accum = -Q_accum;
+                R_accum = -R_accum;
+            else
+                [Q_accum,~, R_accum] = GivensQR(J_res_accum(:,pose_num * 6 + 1));
+            end
             Q1_accum = Q_accum(:,1);
             Q2_accum = Q_accum(:,2:size(Q_accum, 2));
             Q1_accum * R_accum(1)
@@ -227,9 +292,13 @@ for i = 1 : res_num
             J_res_accum = [J_res_accum; [[Q1t_Jpose_each;Q2t_Jpose_each] R_each] [Q1t_res_each;Q2t_res_each]];
         else
             J_res_comb = [J_res_accum(1,:);[Q1t_Jpose_each R_each(1) Q1t_res_each]];
-            [Q_comb, R_comb] = qr(J_res_comb(:,pose_num * 6 + 1));
-            Q_comb = -Q_comb;
-            R_comb = -R_comb;
+            if ~use_self_made_givens
+                [Q_comb, R_comb] = qr(J_res_comb(:,pose_num * 6 + 1));
+                Q_comb = -Q_comb;
+                R_comb = -R_comb;
+            else
+                [Q_comb, ~,R_comb] = GivensQR(J_res_comb(:,pose_num * 6 + 1));
+            end
             Q1_comb = Q_comb(:,1);
             Q2_comb = Q_comb(:,2:size(Q_comb, 2));
             Q1_comb * R_comb(1)
