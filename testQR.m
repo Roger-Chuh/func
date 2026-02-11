@@ -3,6 +3,20 @@ global use_self_made_givens use_self_made_householder
 use_self_made_givens = false;
 use_self_made_householder = true;
 
+
+
+testA= [0     0    0   0  1 2 3
+    0     0    0   0  4 5 6
+    7     8    9 10  0 0 0
+    10  11 12   0  0 0 0
+    13 14 15    16 17 18 19
+    20 21 22    23 24 25 26
+    27 28 29    30 31 32 33];
+testA = [testA [99 : (99 + size(testA,1)-1)]'];
+% [Q, R] = QrGivens(testA);
+[Q, R] = QrHouseholder(testA);
+[Q1, R1] = qr(testA);
+
 x = [3;4];
 
 r = norm(x);
@@ -100,17 +114,24 @@ A_check = Q * check_landmark_r;
 
 res_num = 5;
 pose_num = 1;
+
+
 [J_whole, res_whole] = GenJacs(res_num, pose_num);
 end
 function [G_big, Q, R, A] = QrGivens(A)
+AA = A;
+[Q_gt, R_gt] = qr(A);
 G = [];
 Q = [];
 R = A;
 rows = size(R, 1);
 cols = size(R, 2);
 
-assert(rows >= cols);
-
+%assert(rows >= cols);
+if rows < cols
+    cols = rows;
+end
+R = R(:,1:cols);
 Gs = {};
 G_big = eye(rows);
 for col = 1 : cols
@@ -134,7 +155,10 @@ for col = 1 : cols
         Gs = [Gs;G];
     end
 end
-
+if size(AA, 2) ~= cols
+    R_check = G_big' * AA;
+    R = [R R_check(:,end-((size(AA, 2) - cols) - 1):end)];
+end
 % for i = 1 : length(Gs)
 %     G_big = Gs{i} * G_big;
 % end
@@ -142,32 +166,60 @@ end
 % G_big = G_big';
 R_check = G_big' * A;
 R_diff = R_check - R;
+
+diff = R' * R - AA' * AA;
+max(abs(diff(:)))
+diff_gt = R_gt' * R_gt - AA' * AA;
+max(abs(diff_gt(:)))
 end
 function [Q, R] = QrHouseholder(A)
+[Q_gt, R_gt] = qr(A);
 AA = A;
 Q = [];
 R = A;
 rows = size(R, 1);
 cols = size(R, 2);
-assert(rows >= cols);
+%assert(rows >= cols);
+if rows < cols
+    cols = rows;
+end
+R = R(:,1:cols);
 Q = eye(rows);
+offset = 0;
 for col = 1 : cols
-    diag_ele = R(col, col);
-    col_norm = norm(R(col:rows,col));
-    e = zeros(rows - col + 1,1);
-    e(1) = 1 * sign(diag_ele) * col_norm;
-    v = R(col:rows,col) - e;
+    diag_ele = R(col - offset, col);
+    col_norm = norm(R(col - offset:rows,col));
+    e = zeros(rows - col + 1 + offset,1);
+    sign_diag = sign(diag_ele);
+    if (abs(e(1)) < 1e-10)
+        sign_diag = 1;
+    end
+    e(1) = 1 * sign_diag * col_norm;
+    if (abs( R(col - offset:rows,col)) < 1e-10)
+        %         offset = offset + 1;
+        %        continue;
+    end
+    v = R(col - offset:rows,col) + e;
     v_normalized = v./norm(v);
     
     %     v_normalized * v_normalized' - (v * v') / (v' * v)
     
-    H = eye(rows - col + 1) - 2 * (v * v') / (v' * v);
-    R(col:rows,:) = H * R(col:rows,:);   
-    Q = Q * [eye(col-1) zeros(col-1, rows -col + 1);
-        zeros(rows - col + 1, col-1) H];
+    H = eye(rows - col + 1 + offset) - 2 * (v * v') / (v' * v);
+    R(col - offset:rows,:) = H * R(col - offset:rows,:);
+    Q = Q * [eye(col-1) zeros(col-offset-1, rows -col + 1);
+        zeros(rows - col + 1 + offset, col-1) H];
+end
+
+if size(AA, 2) ~= cols
+    R_check = Q' * AA;
+    R = [R R_check(:,end-((size(AA, 2) - cols) - 1):end)];
 end
 
 Q' * AA;
+diff = R' * R - AA' * AA;
+max(abs(diff(:)))
+diff_gt = R_gt' * R_gt - AA' * AA;
+max(abs(diff_gt(:)))
 end
 function [J_whole, res_whole] = GenJacs(res_num, pose_num)
 global use_self_made_givens use_self_made_householder
