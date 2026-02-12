@@ -118,109 +118,8 @@ pose_num = 1;
 
 [J_whole, res_whole] = GenJacs(res_num, pose_num);
 end
-function [G_big, Q, R, A] = QrGivens(A)
-AA = A;
-[Q_gt, R_gt] = qr(A);
-G = [];
-Q = [];
-R = A;
-rows = size(R, 1);
-cols = size(R, 2);
 
-%assert(rows >= cols);
-if rows < cols
-    cols = rows;
-end
-R = R(:,1:cols);
-Gs = {};
-G_big = eye(rows);
-for col = 1 : cols
-    for row = rows : -1 : col+1
-        diag_ele = R(col, col);
-        ele = R(row, col);
-        if ele == 0
-            continue;
-        end
-        G = eye(rows);
-        r = sqrt(diag_ele^2 + ele^2);
-        c = diag_ele / r;
-        s = ele / r;
-        Q = [c -s; s c];
-        R([col row],:) = Q' * R([col row],:);
-        G(col, col) = c;
-        G(col, row) = -s;
-        G(row, col) = s;
-        G(row, row) = c;
-        G_big = G_big * G;
-        Gs = [Gs;G];
-    end
-end
-if size(AA, 2) ~= cols
-    R_check = G_big' * AA;
-    R = [R R_check(:,end-((size(AA, 2) - cols) - 1):end)];
-end
-% for i = 1 : length(Gs)
-%     G_big = Gs{i} * G_big;
-% end
 
-% G_big = G_big';
-R_check = G_big' * A;
-R_diff = R_check - R;
-
-diff = R' * R - AA' * AA;
-max(abs(diff(:)))
-diff_gt = R_gt' * R_gt - AA' * AA;
-max(abs(diff_gt(:)))
-end
-function [Q, R] = QrHouseholder(A)
-[Q_gt, R_gt] = qr(A);
-AA = A;
-Q = [];
-R = A;
-rows = size(R, 1);
-cols = size(R, 2);
-%assert(rows >= cols);
-if rows < cols
-    cols = rows;
-end
-R = R(:,1:cols);
-Q = eye(rows);
-offset = 0;
-for col = 1 : cols
-    diag_ele = R(col - offset, col);
-    col_norm = norm(R(col - offset:rows,col));
-    e = zeros(rows - col + 1 + offset,1);
-    sign_diag = sign(diag_ele);
-    if (abs(e(1)) < 1e-10)
-        sign_diag = 1;
-    end
-    e(1) = 1 * sign_diag * col_norm;
-    if (abs( R(col - offset:rows,col)) < 1e-10)
-        %         offset = offset + 1;
-        %        continue;
-    end
-    v = R(col - offset:rows,col) + e;
-    v_normalized = v./norm(v);
-    
-    %     v_normalized * v_normalized' - (v * v') / (v' * v)
-    
-    H = eye(rows - col + 1 + offset) - 2 * (v * v') / (v' * v);
-    R(col - offset:rows,:) = H * R(col - offset:rows,:);
-    Q = Q * [eye(col-1) zeros(col-offset-1, rows -col + 1);
-        zeros(rows - col + 1 + offset, col-1) H];
-end
-
-if size(AA, 2) ~= cols
-    R_check = Q' * AA;
-    R = [R R_check(:,end-((size(AA, 2) - cols) - 1):end)];
-end
-
-Q' * AA;
-diff = R' * R - AA' * AA;
-max(abs(diff(:)))
-diff_gt = R_gt' * R_gt - AA' * AA;
-max(abs(diff_gt(:)))
-end
 function [J_whole, res_whole] = GenJacs(res_num, pose_num)
 global use_self_made_givens use_self_made_householder
 use_given_pose_num = true;
@@ -285,6 +184,28 @@ dx_idp_only_solve = (1/R(1)) * Q1' * (res_whole - J_whole(:,1:pose_num * 6) * dx
 
 res_diff = res_pose_only -J_pose_only * dx_whole(1:6)
 
+J_res_mat = [J_whole res_whole];
+if ~use_self_made_givens && ~use_self_made_householder
+    [Q_big, R_big] = qr(J_res_mat);
+    Q_big = -Q_big;
+    R_big = -R_big;
+elseif use_self_made_givens
+    [Q_big, ~, R_big, ~] = QrGivens(J_res_mat);
+elseif use_self_made_householder
+    [Q_big, R_big] = QrHouseholder(J_res_mat);
+end
+
+%使用这个trick的隐含条件是：marg后剩余的状态量一定要是排在后面的，在这个情形下，应该是把pose信息marg到idp上才对。
+J_idp_QR_form = R_big(pose_num * 6+1:pose_num * 6+1, pose_num * 6+1:pose_num * 6+1);
+res_idp_QR_form = R_big(pose_num * 6+1:pose_num * 6+1, pose_num * 6 + 2);
+H_idp_QR_form = J_idp_QR_form' * J_idp_QR_form;
+b_idp_QR_form = J_idp_QR_form' * res_idp_QR_form;
+dx_idp_QR_form = inv(H_idp_QR_form) * b_idp_QR_form;
+dx_pose_QR_form = (inv(R_big(1:pose_num * 6, 1:pose_num * 6))) * (R_big(1:pose_num*6, pose_num*6+2) -R_big(1:pose_num*6,pose_num*6+1) * dx_idp_QR_form);
+
+dx_pose_idp_QR_form2 = (inv(R_big(1:pose_num * 6+1,1:pose_num * 6+1)' * R_big(1:pose_num * 6+1, 1:pose_num * 6+1))) * R_big(1:pose_num * 6+1,1:pose_num * 6+1)'* R_big(1:pose_num * 6+1,pose_num * 6+2);
+
+err_dx = [dx_pose_QR_form; dx_idp_QR_form] - dx_pose_idp_QR_form2;
 
 res_marged_check = J_marged * dx_whole;
 
@@ -292,6 +213,9 @@ H_whole = J_whole' * J_whole;
 rank(H_whole)
 b_whole = J_whole' * res_whole;
 dx_whole_solve = inv(H_whole) * b_whole;
+
+err_dx2 = dx_whole_solve - dx_pose_idp_QR_form2;
+
 H11 = H_whole(1:pose_num * 6, 1:pose_num * 6) - H_whole(1:pose_num * 6, pose_num * 6 + 1) * (1/H_whole(pose_num * 6+1,pose_num * 6+1)) * H_whole(1:pose_num * 6, pose_num * 6 + 1)';
 
 b1 = b_whole(1:pose_num * 6) - H_whole(1:pose_num * 6, pose_num * 6 + 1) * (1/H_whole(pose_num * 6+1,pose_num * 6+1)) * b_whole(pose_num * 6 + 1);
